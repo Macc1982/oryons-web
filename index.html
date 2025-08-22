@@ -98,13 +98,7 @@
   { id:'p9', name:'Hong Kong',     lat:22.3193,  lng:114.1694 },
   { id:'p10', name:'Los Angeles',  lat:34.0522,  lng:-118.2437 }
 ];
-    // Conexões coloridas (só para dar “vida”)
-    const linkTypeColor = t => ({school:'#16a34a', work:'#f59e0b', gym:'#ef4444'}[t]||'#60a5fa');
-    const links = [
-      { a:'p3', b:'p4', type:'school' },
-      { a:'p4', b:'p5', type:'work'   },
-      { a:'p2', b:'p1', type:'gym'    }
-    ];
+ 
 
     // Mapa (projeção globo)
     const map = new mapboxgl.Map({
