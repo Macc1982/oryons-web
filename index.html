@@ -68,105 +68,103 @@
     <div class="title">View photos by location</div>
   </div>
 
-  <script>
-    // ====== TOKEN DA SUA CONTA MAPBOX ======
-    mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
+ <script>
+  // ====== TOKEN DA SUA CONTA MAPBOX ======
+  mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
 
-    // Perfis/Pins de exemplo
-    const profiles = [
-      { id:'p1', name:'Recife',        lat:-8.0476,  lng:-34.8770 },
-      { id:'p2', name:'Paulo Afonso',  lat:-9.4061,  lng:-38.2147 },
-      { id:'p3', name:'New York',      lat:40.7128,  lng:-74.0060 },
-      { id:'p4', name:'Paris',         lat:48.8566,  lng:2.3522 },
-      { id:'p5', name:'Tokyo',         lat:35.6762,  lng:139.6503 }
-    ];
+  // Perfis/Pins de exemplo
+  const profiles = [
+    { id:'p1', name:'Recife',        lat:-8.0476,  lng:-34.8770 },
+    { id:'p2', name:'Paulo Afonso',  lat:-9.4061,  lng:-38.2147 },
+    { id:'p3', name:'New York',      lat:40.7128,  lng:-74.0060 },
+    { id:'p4', name:'Paris',         lat:48.8566,  lng:2.3522 },
+    { id:'p5', name:'Tokyo',         lat:35.6762,  lng:139.6503 }
+  ];
 
-    // Conexões coloridas (só para dar “vida”)
-    const linkTypeColor = t => ({school:'#16a34a', work:'#f59e0b', gym:'#ef4444'}[t]||'#60a5fa');
-    const links = [
-      { a:'p3', b:'p4', type:'school' },
-      { a:'p4', b:'p5', type:'work'   },
-      { a:'p2', b:'p1', type:'gym'    }
-    ];
+  // Conexões coloridas (só para dar “vida”)
+  const linkTypeColor = t => ({school:'#16a34a', work:'#f59e0b', gym:'#ef4444'}[t]||'#60a5fa');
+  const links = [
+    { a:'p3', b:'p4', type:'school' },
+    { a:'p4', b:'p5', type:'work'   },
+    { a:'p2', b:'p1', type:'gym'    }
+  ];
 
-    // Mapa (projeção globo)
-    const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/dark-v11',
-      projection: 'globe',
-      center: [-20, 10],
-      zoom: 1.25,
-      interactive: false,      // tela de login — visual apenas
-      attributionControl: true // mantém crédito em modo compacto
+  // Mapa (projeção globo)
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    projection: 'globe',
+    center: [-20, 10],
+    zoom: 1.25,
+    interactive: false,
+    attributionControl: false
+  });
+  map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+
+  // Use 'load' (tudo pronto) em vez de 'style.load'
+  map.on('load', () => {
+    map.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 });
+
+    // Pontos
+    const pointsFC = {
+      type:'FeatureCollection',
+      features: profiles.map(p => ({
+        type:'Feature',
+        properties:{ name:p.name },
+        geometry:{ type:'Point', coordinates:[p.lng, p.lat] }
+      }))
+    };
+
+    // Linhas (great-circle)
+    const byId = Object.fromEntries(profiles.map(p=>[p.id,p]));
+    const linesFC = {
+      type:'FeatureCollection',
+      features: links.map(l => {
+        const A = byId[l.a], B = byId[l.b];
+        const gc = turf.greatCircle([A.lng,A.lat],[B.lng,B.lat],{ npoints:128 });
+        return { type:'Feature', properties:{ color:linkTypeColor(l.type) }, geometry:gc.geometry };
+      })
+    };
+
+    // Fontes + camadas
+    if (!map.getSource('profiles')) map.addSource('profiles', { type:'geojson', data: pointsFC });
+    if (!map.getLayer('profiles-halo')) map.addLayer({
+      id:'profiles-halo', type:'circle', source:'profiles',
+      paint:{ 'circle-radius':9, 'circle-color': '#ff7a18', 'circle-opacity':0.35 }
+    });
+    if (!map.getLayer('profiles-dot')) map.addLayer({
+      id:'profiles-dot', type:'circle', source:'profiles',
+      paint:{ 'circle-radius':5, 'circle-color':'#ffa94d','circle-stroke-color':'#fff','circle-stroke-width':1.2 }
+    });
+    if (!map.getLayer('profiles-label')) map.addLayer({
+      id:'profiles-label', type:'symbol', source:'profiles',
+      layout:{ 'text-field':['get','name'], 'text-size':11, 'text-offset':[0,1.1], 'text-anchor':'top','text-allow-overlap':true },
+      paint:{ 'text-color':'#dfe6f3', 'text-halo-color':'#0b1020', 'text-halo-width':1.2 }
     });
 
-    // deixa o crédito compacto
-    map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+    if (!map.getSource('connections')) map.addSource('connections', { type:'geojson', data: linesFC });
+    if (!map.getLayer('connections')) map.addLayer({
+      id:'connections', type:'line', source:'connections',
+      paint:{ 'line-color':['get','color'], 'line-width':2.6, 'line-opacity':0.9 }
+    });
 
-    map.on('style.load', () => {
-      map.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 });
+    // Enquadrar
+    const b = new mapboxgl.LngLatBounds();
+    profiles.forEach(p => b.extend([p.lng, p.lat]));
+    map.fitBounds(b, { padding: 80, duration: 1000, maxZoom: 5.2 });
 
-      // Pontos
-      const pointsFC = {
-        type:'FeatureCollection',
-        features: profiles.map(p => ({
-          type:'Feature',
-          properties:{ name:p.name },
-          geometry:{ type:'Point', coordinates:[p.lng, p.lat] }
-        }))
-      };
-
-      // Linhas (great-circle)
-      const byId = Object.fromEntries(profiles.map(p=>[p.id,p]));
-      const linesFC = {
-        type:'FeatureCollection',
-        features: links.map(l => {
-          const A = byId[l.a], B = byId[l.b];
-          const gc = turf.greatCircle([A.lng,A.lat],[B.lng,B.lat],{ npoints:128 });
-          return { type:'Feature', properties:{ color:linkTypeColor(l.type) }, geometry:gc.geometry };
-        })
-      };
-
-      map.addSource('profiles', { type:'geojson', data: pointsFC });
-      map.addLayer({
-        id:'profiles-halo', type:'circle', source:'profiles',
-        paint:{ 'circle-radius':9, 'circle-color': '#ff7a18', 'circle-opacity':0.35 }
-      });
-      map.addLayer({
-        id:'profiles-dot', type:'circle', source:'profiles',
-        paint:{
-          'circle-radius':5, 'circle-color':'#ffa94d',
-          'circle-stroke-color':'#fff', 'circle-stroke-width':1.2
-        }
-      });
-      map.addLayer({
-        id:'profiles-label', type:'symbol', source:'profiles',
-        layout:{ 'text-field':['get','name'], 'text-size':11, 'text-offset':[0,1.1], 'text-anchor':'top', 'text-allow-overlap':true },
-        paint:{ 'text-color':'#dfe6f3', 'text-halo-color':'#0b1020', 'text-halo-width':1.2 }
-      });
-
-      map.addSource('connections', { type:'geojson', data: linesFC });
-      map.addLayer({
-        id:'connections', type:'line', source:'connections',
-        paint:{ 'line-color':['get','color'], 'line-width':2.6, 'line-opacity':0.9 }
-      });
-
-      // Rotação contínua do globo
-      let raf = 0;
-      const spin = () => {
-        map.setBearing((map.getBearing() + 0.035) % 360, { animate:false });
-        raf = requestAnimationFrame(spin);
-      };
+    // Rotação contínua do globo (garante repaint)
+    let raf = 0;
+    const spin = () => {
+      map.setBearing((map.getBearing() + 0.035) % 360, { animate:false });
       raf = requestAnimationFrame(spin);
+    };
+    raf = requestAnimationFrame(spin);
 
-      // Enquadrar
-      const b = new mapboxgl.LngLatBounds();
-      profiles.forEach(p => b.extend([p.lng, p.lat]));
-      map.fitBounds(b, { padding: 80, duration: 1000, maxZoom: 5.2 });
+    // Cleanup ao sair
+    window.addEventListener('pagehide', () => cancelAnimationFrame(raf), { once:true });
+  });
 
-      // Cleanup ao sair
-      window.addEventListener('pagehide', () => cancelAnimationFrame(raf), { once:true });
-    });
-  </script>
-</body>
-</html>
+  // (opcional) log de erros para debugar caso algo falhe
+  map.on('error', (e) => console.warn('Mapbox error:', e && e.error));
+</script>
