@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Login • Globo 3D (Mapbox)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Mapbox GL -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>
+
+  <!-- Turf para arcos (great-circle) -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1221; --card:#ffffffef; --brand:#2638ff;
+      --halo:#ff7a18; --dot:#ffa94d;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    #wrap{position:relative;height:100%;width:100%;overflow:hidden}
+    #map{position:absolute;inset:0}
+
+    /* Card de login (mobile-first: embaixo; desktop: à direita) */
+    .login{
+      position:absolute; left:12px; right:12px; bottom:12px;
+      background:var(--card); border-radius:16px; padding:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25); backdrop-filter:blur(6px)
+    }
+    .login h2{margin:0 0 8px;font-size:20px}
+    .field{display:grid;gap:6px;margin-top:10px}
+    .field label{font-size:12px;color:#2a3550}
+    .field input{padding:10px 12px;border:1px solid #d9dfec;border-radius:10px;outline:none}
+    .btn{margin-top:10px;width:100%;padding:12px;border:0;border-radius:12px;background:var(--brand);color:#fff;font-weight:700}
+    .muted{margin-top:8px;font-size:12px;color:#7d8796;text-align:center}
+
+    @media (min-width: 900px){
+      .login{top:50%;bottom:auto;transform:translateY(-50%);width:360px;right:24px;left:auto}
+    }
+
+    /* Título */
+    .title{
+      position:absolute; left:0; right:0; bottom:24px;
+      text-align:center; color:#fff; font-weight:800; font-size:28px; letter-spacing:.2px
+    }
+
+    /* Legenda */
+    .legend{
+      position:absolute; left:12px; bottom:12px; background:#ffffffdd;
+      padding:8px 10px; border-radius:10px; font-size:12px; box-shadow:0 8px 24px rgba(0,0,0,.15)
+    }
+    .legend i{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:6px}
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="map"></div>
+
+    <!-- Card de Login -->
+    <form class="login" onsubmit="event.preventDefault(); alert('Login demo — troque por sua API quando quiser.');">
+      <h2>Login</h2>
+      <div class="field">
+        <label for="user">Username</label>
+        <input id="user" placeholder="seu usuário" required />
+      </div>
+      <div class="field">
+        <label for="pass">Password</label>
+        <input id="pass" type="password" placeholder="••••••••" required />
+      </div>
+      <button class="btn" type="submit">Log in</button>
+      <div class="muted">Demo local — depois plugamos JWT/Back‑End.</div>
+    </form>
+
+    <div class="title">View photos by location</div>
+
+    <div class="legend">
+      <div><i style="background:#16a34a"></i> Escola</div>
+      <div><i style="background:#f59e0b"></i> Trabalho</div>
+      <div><i style="background:#ef4444"></i> Academia</div>
+    </div>
+  </div>
+
+  <script>
+    // ====== TOKEN DA SUA CONTA MAPBOX (fornecido por você) ======
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
+
+    // Perfis/Pins de exemplo
+    const profiles = [
+      { id:'p1', name:'Recife',        lat:-8.0476,  lng:-34.8770 },
+      { id:'p2', name:'Paulo Afonso',  lat:-9.4061,  lng:-38.2147 },
+      { id:'p3', name:'New York',      lat:40.7128,  lng:-74.0060 },
+      { id:'p4', name:'Paris',         lat:48.8566,  lng:2.3522 },
+      { id:'p5', name:'Tokyo',         lat:35.6762,  lng:139.6503 }
+    ];
+
+    // Conexões coloridas (só para dar “vida”)
+    const linkTypeColor = t => ({school:'#16a34a', work:'#f59e0b', gym:'#ef4444'}[t]||'#60a5fa');
+    const links = [
+      { a:'p3', b:'p4', type:'school' },
+      { a:'p4', b:'p5', type:'work'   },
+      { a:'p2', b:'p1', type:'gym'    }
+    ];
+
+    // Mapa (projeção globo)
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      projection: 'globe',
+      center: [-20, 10],
+      zoom: 1.25,
+      interactive: false // tela de login — visual apenas
+    });
+
+    map.on('style.load', () => {
+      map.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 });
+
+      // Pontos
+      const pointsFC = {
+        type:'FeatureCollection',
+        features: profiles.map(p => ({
+          type:'Feature',
+          properties:{ name:p.name },
+          geometry:{ type:'Point', coordinates:[p.lng, p.lat] }
+        }))
+      };
+
+      // Linhas (great-circle)
+      const byId = Object.fromEntries(profiles.map(p=>[p.id,p]));
+      const linesFC = {
+        type:'FeatureCollection',
+        features: links.map(l => {
+          const A = byId[l.a], B = byId[l.b];
+          const gc = turf.greatCircle([A.lng,A.lat],[B.lng,B.lat],{ npoints:128 });
+          return { type:'Feature', properties:{ color:linkTypeColor(l.type) }, geometry:gc.geometry };
+        })
+      };
+
+      map.addSource('profiles', { type:'geojson', data: pointsFC });
+      map.addLayer({
+        id:'profiles-halo', type:'circle', source:'profiles',
+        paint:{ 'circle-radius':9, 'circle-color': '#ff7a18', 'circle-opacity':0.35 }
+      });
+      map.addLayer({
+        id:'profiles-dot', type:'circle', source:'profiles',
+        paint:{
+          'circle-radius':5, 'circle-color':'#ffa94d',
+          'circle-stroke-color':'#fff', 'circle-stroke-width':1.2
+        }
+      });
+      map.addLayer({
+        id:'profiles-label', type:'symbol', source:'profiles',
+        layout:{ 'text-field':['get','name'], 'text-size':11, 'text-offset':[0,1.1], 'text-anchor':'top', 'text-allow-overlap':true },
+        paint:{ 'text-color':'#dfe6f3', 'text-halo-color':'#0b1020', 'text-halo-width':1.2 }
+      });
+
+      map.addSource('connections', { type:'geojson', data: linesFC });
+      map.addLayer({
+        id:'connections', type:'line', source:'connections',
+        paint:{ 'line-color':['get','color'], 'line-width':2.6, 'line-opacity':0.9 }
+      });
+
+      // Rotação contínua do globo
+      let raf = 0;
+      const spin = () => {
+        map.setBearing((map.getBearing() + 0.035) % 360, { animate:false });
+        raf = requestAnimationFrame(spin);
+      };
+      raf = requestAnimationFrame(spin);
+
+      // Enquadrar
+      const b = new mapboxgl.LngLatBounds();
+      profiles.forEach(p => b.extend([p.lng, p.lat]));
+      map.fitBounds(b, { padding: 80, duration: 1000, maxZoom: 5.2 });
+
+      // Cleanup ao sair
+      window.addEventListener('pagehide', () => cancelAnimationFrame(raf), { once:true });
+    });
+  </script>
+</body>
+</html>
