@@ -1,1 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Cadastro • Globo 3D (Mapbox)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+  <!-- Mapbox GL -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root{
+      --bg: #0b1221;
+      --card: #ffffffef;
+      --brand: #2638ff;
+      --halo: #ff7a18;
+      --dot: #ffa94d;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    #wrap{position:relative;height:100%;width:100%;overflow:hidden}
+    #map{position:absolute;inset:0}
+
+    /* Card de cadastro (mobile-first) */
+    .signup{
+      position:absolute; left:12px; right:12px; bottom:12px;
+      background:var(--card); border-radius:16px; padding:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25); backdrop-filter:blur(6px);
+    }
+    .signup h2{margin:0 0 8px;font-size:20px}
+    .field{display:grid;gap:6px;margin-top:10px}
+    .field label{font-size:12px;color:#2a3550}
+    .field input{padding:10px 12px;border:1px solid #d9dfec;border-radius:10px;outline:none}
+    .btn{margin-top:10px;width:100%;padding:12px;border:0;border-radius:12px;background:var(--brand);color:#fff;font-weight:700;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .muted{margin-top:8px;font-size:12px;color:#7d8796;text-align:center}
+    .error{color:#e11d48;font-size:13px;margin-top:4px;text-align:center}
+
+    @media (min-width: 900px){
+      .signup{top:50%;bottom:auto;transform:translateY(-50%);width:420px;right:24px;left:auto}
+    }
+
+    .title{
+      position:absolute; left:0; right:0; bottom:24px;
+      text-align:center; color:#fff; font-weight:800; font-size:28px; letter-spacing:.2px
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="map"></div>
+
+    <!-- Card de Cadastro -->
+    <form class="signup" id="signupForm" autocomplete="on">
+      <h2>Criar conta</h2>
+      <div class="field">
+        <label for="fullName">Nome completo</label>
+        <input id="fullName" placeholder="Seu nome" required />
+      </div>
+      <div class="field">
+        <label for="age">Idade</label>
+        <input id="age" type="number" min="13" placeholder="18" required />
+      </div>
+      <div class="field">
+        <label for="username">Nome de usuário</label>
+        <input id="username" placeholder="seu_usuário" required />
+      </div>
+      <div class="field">
+        <label for="email">E‑mail</label>
+        <input id="email" type="email" placeholder="voce@email.com" required />
+      </div>
+      <div class="field">
+        <label for="password">Senha <span style="font-size:11px;color:#7d8796">(8+ caracteres com letras e números)</span></label>
+        <input id="password" type="password" placeholder="••••••••" required />
+      </div>
+      <button class="btn" type="submit" id="signupBtn">Cadastrar</button>
+      <div id="signupError" class="error" style="display:none"></div>
+      <div class="muted">Já possui conta? <a href="login.html">Faça login</a>.</div>
+    </form>
+
+    <div class="title">Compartilhe sua história no mapa</div>
+  </div>
+
+  <script>
+    // ====== CONFIGURE SEU SUPABASE AQUI ======
+    const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
+    const REDIRECT_AFTER_SIGNUP = 'map.html';
+    // =========================================
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true } });
+
+    const signupForm = document.getElementById('signupForm');
+    const signupBtn   = document.getElementById('signupBtn');
+    const signupError = document.getElementById('signupError');
+
+    function showError(message) {
+      signupError.textContent = message;
+      signupError.style.display = 'block';
+    }
+
+    function hideError() {
+      signupError.style.display = 'none';
+    }
+
+    function validPassword(p) {
+      return p.length >= 8 && /[A-Za-z]/.test(p) && /\d/.test(p);
+    }
+
+    signupForm.addEventListener('submit', async function(event) {
+      event.preventDefault();
+      hideError();
+      signupBtn.disabled = true;
+      signupBtn.textContent = 'Cadastrando...';
+      const fullName = document.getElementById('fullName').value.trim();
+      const ageVal   = Number(document.getElementById('age').value);
+      const username = document.getElementById('username').value.trim();
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!fullName) { showError('Informe seu nome completo.'); reset(); return; }
+      if (!ageVal || ageVal < 13) { showError('Idade mínima é 13 anos.'); reset(); return; }
+      if (!username) { showError('Informe um nome de usuário.'); reset(); return; }
+      if (!validPassword(password)) { showError('Senha fraca. Use 8+ caracteres com letras e números.'); reset(); return; }
+      try {
+        // Cria usuário no Supabase Auth
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+        if (signUpError) throw signUpError;
+        const user = signUpData.user;
+        if (!user) throw new Error('Erro ao criar usuário.');
+        // Insere no perfil
+        const { error: profileError } = await supabase.from('profiles').insert({ id: user.id, full_name: fullName, age: ageVal, username });
+        if (profileError) throw profileError;
+        // Redireciona após sucesso
+        window.location.href = REDIRECT_AFTER_SIGNUP;
+      } catch (err) {
+        showError(err.message || 'Erro ao cadastrar.');
+        signupBtn.disabled = false;
+        signupBtn.textContent = 'Cadastrar';
+      }
+      function reset() {
+        signupBtn.disabled = false;
+        signupBtn.textContent = 'Cadastrar';
+      }
+    });
+
+    // ====== MAPBOX SETUP ======
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
+    const profilesDemo =  [
+      { id:'p1', name:'New York',      lat:40.7128,  lng:-74.0060 },
+      { id:'p2', name:'London',        lat:51.5074,  lng:-0.1278 },
+      { id:'p3', name:'Paris',         lat:48.8566,  lng:2.3522 },
+      { id:'p4', name:'Tokyo',         lat:35.6762,  lng:139.6503 },
+      { id:'p5', name:'Beijing',       lat:39.9042,  lng:116.4074 },
+      { id:'p6', name:'Dubai',         lat:25.276987, lng:55.296249 },
+      { id:'p7', name:'Singapore',     lat:1.3521,   lng:103.8198 },
+      { id:'p8', name:'São Paulo',     lat:-23.5505, lng:-46.6333 },
+      { id:'p9', name:'Hong Kong',     lat:22.3193,  lng:114.1694 },
+      { id:'p10', name:'Los Angeles',  lat:34.0522,  lng:-118.2437 }
+    ];
+    const linkTypeColorDemo = t => ({school:'#16a34a', work:'#f59e0b', gym:'#ef4444'}[t]||'#60a5fa');
+    const linksDemo = [
+      { a:'p3', b:'p4', type:'school' },
+      { a:'p4', b:'p5', type:'work'   },
+      { a:'p2', b:'p1', type:'gym'    }
+    ];
+    const mapSignup = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      projection: 'globe',
+      center: [-20, 10],
+      zoom: 1.25,
+      interactive: false,
+      attributionControl: false
+    });
+    mapSignup.addControl(new mapboxgl.AttributionControl({ compact: true }));
+    mapSignup.on('load', () => {
+      mapSignup.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 });
+      const pointsFC = {
+        type:'FeatureCollection',
+        features: profilesDemo.map(p => ({
+          type:'Feature',
+          properties:{ name:p.name },
+          geometry:{ type:'Point', coordinates:[p.lng, p.lat] }
+        }))
+      };
+      const byId = Object.fromEntries(profilesDemo.map(p=>[p.id,p]));
+      const linesFC = {
+        type:'FeatureCollection',
+        features: linksDemo.map(l => {
+          const A = byId[l.a], B = byId[l.b];
+          const gc = turf.greatCircle([A.lng,A.lat],[B.lng,B.lat],{ npoints:128 });
+          return { type:'Feature', properties:{ color:linkTypeColorDemo(l.type) }, geometry:gc.geometry };
+        })
+      };
+      if (!mapSignup.getSource('profiles')) mapSignup.addSource('profiles', { type:'geojson', data: pointsFC });
+      if (!mapSignup.getLayer('profiles-halo')) mapSignup.addLayer({
+        id:'profiles-halo', type:'circle', source:'profiles',
+        paint:{ 'circle-radius':9, 'circle-color': '#ff7a18', 'circle-opacity':0.35 }
+      });
+      if (!mapSignup.getLayer('profiles-dot')) mapSignup.addLayer({
+        id:'profiles-dot', type:'circle', source:'profiles',
+        paint:{ 'circle-radius':5, 'circle-color':'#ffa94d','circle-stroke-color':'#fff','circle-stroke-width':1.2 }
+      });
+      if (!mapSignup.getLayer('profiles-label')) mapSignup.addLayer({
+        id:'profiles-label', type:'symbol', source:'profiles',
+        layout:{ 'text-field':['get','name'], 'text-size':11, 'text-offset':[0,1.1], 'text-anchor':'top','text-allow-overlap':true },
+        paint:{ 'text-color':'#dfe6f3', 'text-halo-color':'#0b1020', 'text-halo-width':1.2 }
+      });
+      if (!mapSignup.getSource('connections')) mapSignup.addSource('connections', { type:'geojson', data: linesFC });
+      if (!mapSignup.getLayer('connections')) mapSignup.addLayer({
+        id:'connections', type:'line', source:'connections',
+        paint:{ 'line-color':['get','color'], 'line-width':2.6, 'line-opacity':0.9 }
+      });
+      const b = new mapboxgl.LngLatBounds();
+      profilesDemo.forEach(p => b.extend([p.lng, p.lat]));
+      mapSignup.fitBounds(b, { padding: 80, duration: 1000, maxZoom: 5.2 });
+      let raf = 0;
+      const spin = () => {
+        mapSignup.setBearing((mapSignup.getBearing() + 0.035) % 360, { animate:false });
+        raf = requestAnimationFrame(spin);
+      };
+      raf = requestAnimationFrame(spin);
+      window.addEventListener('pagehide', () => cancelAnimationFrame(raf), { once:true });
+    });
+  </script>
+</body>
+</html>
