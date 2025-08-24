@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Mapa • Globo 3D (Marcar Pontos)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Mapbox GL -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Turf (arcos entre pontos) -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1221;
+      --panel:#0b1221;
+      --accent:#2638ff;
+      --halo:#ff7a18;
+      --dot:#ffa94d;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff}
+    .grid{display:grid;grid-template-columns:1fr;min-height:100vh}
+    @media(min-width:900px){.grid{grid-template-columns:1.3fr 1fr}}
+    #map{width:100%;height:50vh}
+    @media(min-width:900px){#map{height:100vh}}
+    .panel{
+      background:var(--panel);
+      padding:18px;
+      border-left:1px solid #ffffff20;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    h1{margin:0;font-size:22px;font-weight:600}
+    .muted{color:#8ea3c7;font-size:13px}
+    .point{border:1px solid #ffffff20;border-radius:12px;padding:12px;margin-bottom:12px}
+    .point label{font-size:12px;color:#ccd4e0;margin-top:6px;display:block}
+    .point input,.point textarea{width:100%;padding:8px 10px;border-radius:10px;border:0;background:#fff;color:#111;font-size:14px;margin-top:4px}
+    .point input[type="file"]{padding:2px;color:#ddd;background:none}
+    .point .meta{font-size:11px;color:#8ea3c7;margin-top:6px}
+    .error{color:#e11d48;font-size:14px}
+    .buttons{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{padding:10px 14px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+    .btn-outline{background:#ffffff10;border:1px solid #ffffff30;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;display:inline-block;line-height:1}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div id="map"></div>
+    <section class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h1>Marque sua história</h1>
+        <a class="btn-outline" href="feed.html">Ir para o Feed</a>
+      </div>
+      <p class="muted">Clique no mapa para adicionar um ponto. Preencha título, descrição, data e (opcional) envie uma foto.</p>
+      <div id="error" class="error" style="display:none"></div>
+      <div id="list" style="flex:1;overflow-y:auto;padding-right:4px"></div>
+      <div class="buttons">
+        <button class="btn" id="saveBtn">Salvar pontos e avançar</button>
+        <a class="btn-outline" href="feed.html">Pular por agora</a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ====== CONFIGURAÇÃO SUPABASE ======
+    const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
+    const BUCKET_NAME = 'map-photos';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true } });
+
+    // Verifica sessão de login
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        window.location.href = 'login.html';
+      }
+    })();
+
+    // ====== MAPBOX SETUP ======
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      projection: 'globe',
+      center: [-40, -10],
+      zoom: 2,
+      interactive: true,
+      attributionControl: false
+    });
+    map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+    map.on('load', () => {
+      map.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 });
+    });
+
+    // Armazena os pontos criados
+    const points = [];
+    const list = document.getElementById('list');
+    const errorEl = document.getElementById('error');
+
+    // Renderiza a lista de pontos
+    function render() {
+      list.innerHTML = '';
+      if (points.length === 0) {
+        const p = document.createElement('p');
+        p.className = 'muted';
+        p.textContent = 'Nenhum ponto adicionado ainda.';
+        list.appendChild(p);
+        return;
+      }
+      points.forEach((pt, idx) => {
+        const div = document.createElement('div');
+        div.className = 'point';
+        div.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>Ponto ${idx + 1}</strong>
+            <button type="button" data-remove="${idx}" style="background:#ffffff18;border:1px solid #ffffff30;color:#fff;padding:6px 10px;border-radius:8px;font-size:12px">Remover</button>
+          </div>
+          <label>Título</label>
+          <input data-field="title" data-idx="${idx}" value="${pt.title || ''}" placeholder="Ex: Onde nasci" />
+          <label>Descrição</label>
+          <textarea data-field="description" data-idx="${idx}" placeholder="Algum contexto">${pt.description || ''}</textarea>
+          <label>Data (opcional)</label>
+          <input type="date" data-field="date" data-idx="${idx}" value="${pt.date || ''}" />
+          <label>Foto (opcional)</label>
+          <input type="file" accept="image/*" data-field="file" data-idx="${idx}" />
+          <p class="meta">Lat/Lng: ${pt.lat.toFixed(5)}, ${pt.lng.toFixed(5)}</p>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    // Atualiza propriedade de um ponto
+    function updatePoint(idx, field, value) {
+      points[idx][field] = value;
+    }
+
+    // Remove ponto
+    function removePoint(idx) {
+      const p = points[idx];
+      if (p.marker) p.marker.remove();
+      points.splice(idx, 1);
+      render();
+    }
+
+    // Eventos delegados
+    list.addEventListener('click', (e) => {
+      const btn = e.target;
+      if (btn.tagName === 'BUTTON' && btn.dataset.remove) {
+        const idx = Number(btn.dataset.remove);
+        removePoint(idx);
+      }
+    });
+    list.addEventListener('input', (e) => {
+      const el   = e.target;
+      const idx  = Number(el.dataset.idx);
+      const field= el.dataset.field;
+      if (field && field !== 'file') {
+        updatePoint(idx, field, el.value);
+      }
+    });
+    list.addEventListener('change', (e) => {
+      const el   = e.target;
+      const idx  = Number(el.dataset.idx);
+      const field= el.dataset.field;
+      if (field === 'file') {
+        const file = el.files && el.files[0] ? el.files[0] : null;
+        updatePoint(idx, 'file', file);
+      }
+    });
+
+    // Clica no mapa -> adiciona marcador
+    map.on('click', (e) => {
+      const { lng, lat } = e.lngLat;
+      const marker = new mapboxgl.Marker({ color: '#ffa94d' }).setLngLat([lng, lat]).addTo(map);
+      points.push({ lat, lng, title:'', description:'', date:'', file: null, marker });
+      render();
+    });
+
+    // Salvar pontos no banco
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      errorEl.style.display = 'none';
+      if (points.length === 0) {
+        errorEl.textContent = 'Adicione pelo menos 1 ponto.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      if (points.some(p => !p.title.trim())) {
+        errorEl.textContent = 'Todo ponto precisa de um título.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      // Desativa botão durante upload
+      const saveBtn = document.getElementById('saveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Salvando...';
+      try {
+        const { data } = await supabase.auth.getSession();
+        const user = data.session?.user;
+        if (!user) throw new Error('Sessão expirada. Faça login novamente.');
+        const payload = [];
+        // Upload fotos e prepara payload
+        for (const p of points) {
+          let photoPath = null;
+          if (p.file) {
+            // Gera nome único: userId/timestamp_random.ext
+            const ext     = p.file.name.split('.').pop();
+            const fileName= ${user.id}/${Date.now()}_${Math.random().toString(36).substring(2)}.${ext};
+            const { data: uploadData, error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(fileName, p.file);
+            if (uploadError) throw uploadError;
+            photoPath = uploadData.path;
+          }
+          payload.push({
+            user_id: user.id,
+            title: p.title || null,
+            description: p.description || null,
+            lat: p.lat,
+            lng: p.lng,
+            happened_at: p.date || null,
+            photo_url: photoPath
+          });
+        }
+        // Insere todos os pontos
+        const { error: insertError } = await supabase.from('map_points').insert(payload);
+        if (insertError) throw insertError;
+        // Redireciona para feed
+        window.location.href = 'feed.html';
+      } catch (err) {
+        errorEl.textContent = err.message || 'Falha ao salvar.';
+        errorEl.style.display = 'block';
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Salvar pontos e avançar';
+      }
+    });
+  </script>
+</body>
+</html>
