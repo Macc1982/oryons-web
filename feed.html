@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Feed • Globo 3D</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root{
+      --bg:#0b1221;
+      --card:#0b1221;
+      --accent:#2638ff;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff}
+    .wrap{max-width:900px;margin:0 auto;padding:20px;min-height:100vh;display:flex;flex-direction:column;gap:20px}
+    h1{margin:0;font-size:24px;font-weight:600}
+    .nav{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+    .btn{padding:8px 12px;border:0;border-radius:8px;background:var(--accent);color:#fff;font-weight:600;text-decoration:none;display:inline-block}
+    .btn-outline{background:#ffffff10;border:1px solid #ffffff30;color:#fff;text-decoration:none;padding:8px 12px;border-radius:8px}
+    .muted{color:#8ea3c7;font-size:14px}
+    .feed-list{display:flex;flex-direction:column;gap:16px}
+    .item{border:1px solid #ffffff20;border-radius:12px;padding:16px;background:#0f192e}
+    .item h3{margin:0 0 4px;font-size:18px;color:#fff}
+    .item p{margin:6px 0;color:#cbd5e1;font-size:14px}
+    .item img{display:block;max-width:100%;border-radius:8px;margin-top:8px}
+    .meta{font-size:12px;color:#8ea3c7;margin-top:4px}
+    .error{color:#e11d48;font-size:14px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="nav">
+      <h1>Feed</h1>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn" href="map.html">Meus pontos</a>
+        <button id="logoutBtn" class="btn-outline">Sair</button>
+      </div>
+    </div>
+    <p class="muted">Veja os pontos que você marcou no mapa.</p>
+    <div id="error" class="error" style="display:none"></div>
+    <div id="feed" class="feed-list"></div>
+  </div>
+
+  <script>
+    // ====== CONFIGURAÇÃO SUPABASE ======
+    const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
+    const BUCKET_NAME = 'map-photos';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true } });
+
+    const errorEl = document.getElementById('error');
+    const feedEl  = document.getElementById('feed');
+
+    // Sessão e carregamento
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const session = data.session;
+      if (!session) {
+        window.location.href = 'login.html';
+        return;
+      }
+      const user = session.user;
+      try {
+        // Busca pontos do usuário
+        const { data: points, error: pointsError } = await supabase.from('map_points').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+        if (pointsError) throw pointsError;
+        if (!points || points.length === 0) {
+          feedEl.innerHTML = '<p class="muted">Você ainda não criou pontos. <a class="btn" href="map.html">Criar agora</a></p>';
+          return;
+        }
+        // Para cada ponto com foto, obtem a URL pública
+        const items = [];
+        for (const p of points) {
+          let photoUrl = null;
+          if (p.photo_url) {
+            const { data: publicData, error: publicError } = await supabase.storage.from(BUCKET_NAME).getPublicUrl(p.photo_url);
+            if (publicError) {
+              console.warn(publicError.message);
+            } else {
+              photoUrl = publicData.publicUrl;
+            }
+          }
+          items.push({ ...p, photoUrl });
+        }
+        renderFeed(items);
+      } catch (err) {
+        errorEl.textContent = err.message || 'Erro ao carregar feed.';
+        errorEl.style.display = 'block';
+      }
+    })();
+
+    function renderFeed(items) {
+      feedEl.innerHTML = '';
+      items.forEach(it => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = `
+          <h3>${it.title || 'Sem título'}</h3>
+          ${it.description ? <p>${it.description}</p> : ''}
+          ${it.photoUrl ? <img src="${it.photoUrl}" alt="Foto do ponto" /> : ''}
+          <p class="meta">${it.happened_at ? Data: ${it.happened_at} : ''}${it.happened_at ? ' • ' : ''}Lat/Lng: ${it.lat.toFixed(4)}, ${it.lng.toFixed(4)}</p>
+        `;
+        feedEl.appendChild(div);
+      });
+    }
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      await supabase.auth.signOut();
+      window.location.href = 'login.html';
+    });
+  </script>
+</body>
+</html>
