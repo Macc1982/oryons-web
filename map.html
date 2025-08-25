@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <title>Mapa • Globo 3D (Marcar Pontos)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:,">
 
   <!-- Mapbox GL -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
@@ -12,31 +13,18 @@
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Turf (arcos entre pontos) -->
+  <!-- Turf -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 
   <style>
-    :root{
-      --bg:#0b1221;
-      --panel:#0b1221;
-      --accent:#2638ff;
-      --halo:#ff7a18;
-      --dot:#ffa94d;
-    }
+    :root{ --bg:#0b1221; --panel:#0b1221; --accent:#2638ff; --halo:#ff7a18; --dot:#ffa94d; }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff}
     .grid{display:grid;grid-template-columns:1fr;min-height:100vh}
     @media(min-width:900px){.grid{grid-template-columns:1.3fr 1fr}}
     #map{width:100%;height:50vh}
     @media(min-width:900px){#map{height:100vh}}
-    .panel{
-      background:var(--panel);
-      padding:18px;
-      border-left:1px solid #ffffff20;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-    }
+    .panel{background:var(--panel);padding:18px;border-left:1px solid #ffffff20;display:flex;flex-direction:column;gap:12px}
     h1{margin:0;font-size:22px;font-weight:600}
     .muted{color:#8ea3c7;font-size:13px}
     .point{border:1px solid #ffffff20;border-radius:12px;padding:12px;margin-bottom:12px}
@@ -70,179 +58,126 @@
   </div>
 
   <script>
-    // ====== CONFIGURAÇÃO SUPABASE ======
+    // ====== SUPABASE ======
     const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
-    const BUCKET_NAME = 'map-photos';
+    const BUCKET_NAME = 'map-photos'; // <- certifique-se de criar como PUBLIC
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true } });
 
-    // Verifica sessão de login
+    // checa sessão (não redireciona em file:// para facilitar teste)
     (async () => {
       const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        window.location.href = 'login.html';
-      }
+      if (!data.session && location.protocol !== 'file:') location.href = 'login.html';
     })();
 
-    // ====== MAPBOX SETUP ======
+    // ====== MAPBOX ======
     mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
     const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/dark-v11',
-      projection: 'globe',
-      center: [-40, -10],
-      zoom: 2,
-      interactive: true,
-      attributionControl: false
+      container: 'map', style: 'mapbox://styles/mapbox/dark-v11',
+      projection: 'globe', center: [-40, -10], zoom: 2, interactive: true, attributionControl: false
     });
     map.addControl(new mapboxgl.AttributionControl({ compact: true }));
-    map.on('load', () => {
-      map.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 });
-    });
+    map.on('load', () => map.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 }));
 
-    // Armazena os pontos criados
+    // ====== UI ======
     const points = [];
     const list = document.getElementById('list');
     const errorEl = document.getElementById('error');
 
-    // Renderiza a lista de pontos
-    function render() {
+    function render(){
       list.innerHTML = '';
-      if (points.length === 0) {
+      if (!points.length){
         const p = document.createElement('p');
-        p.className = 'muted';
-        p.textContent = 'Nenhum ponto adicionado ainda.';
-        list.appendChild(p);
-        return;
+        p.className='muted'; p.textContent='Nenhum ponto adicionado ainda.'; list.appendChild(p); return;
       }
-      points.forEach((pt, idx) => {
+      points.forEach((pt,idx)=>{
         const div = document.createElement('div');
-        div.className = 'point';
-        div.innerHTML = `
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <strong>Ponto ${idx + 1}</strong>
-            <button type="button" data-remove="${idx}" style="background:#ffffff18;border:1px solid #ffffff30;color:#fff;padding:6px 10px;border-radius:8px;font-size:12px">Remover</button>
-          </div>
-          <label>Título</label>
-          <input data-field="title" data-idx="${idx}" value="${pt.title || ''}" placeholder="Ex: Onde nasci" />
-          <label>Descrição</label>
-          <textarea data-field="description" data-idx="${idx}" placeholder="Algum contexto">${pt.description || ''}</textarea>
-          <label>Data (opcional)</label>
-          <input type="date" data-field="date" data-idx="${idx}" value="${pt.date || ''}" />
-          <label>Foto (opcional)</label>
-          <input type="file" accept="image/*" data-field="file" data-idx="${idx}" />
-          <p class="meta">Lat/Lng: ${pt.lat.toFixed(5)}, ${pt.lng.toFixed(5)}</p>
-        `;
+        div.className='point';
+        div.innerHTML =
+          '<div style="display:flex;justify-content:space-between;align-items:center">'+
+            '<strong>Ponto '+(idx+1)+'</strong>'+
+            '<button type="button" data-remove="'+idx+'" style="background:#ffffff18;border:1px solid #ffffff30;color:#fff;padding:6px 10px;border-radius:8px;font-size:12px">Remover</button>'+
+          '</div>'+
+          '<label>Título</label>'+
+          '<input data-field="title" data-idx="'+idx+'" value="'+(pt.title||'')+'" placeholder="Ex: Onde nasci" />'+
+          '<label>Descrição</label>'+
+          '<textarea data-field="description" data-idx="'+idx+'" placeholder="Algum contexto">'+(pt.description||'')+'</textarea>'+
+          '<label>Data (opcional)</label>'+
+          '<input type="date" data-field="date" data-idx="'+idx+'" value="'+(pt.date||'')+'" />'+
+          '<label>Foto (opcional)</label>'+
+          '<input type="file" accept="image/*" data-field="file" data-idx="'+idx+'" />'+
+          '<p class="meta">Lat/Lng: '+pt.lat.toFixed(5)+', '+pt.lng.toFixed(5)+'</p>';
         list.appendChild(div);
       });
     }
 
-    // Atualiza propriedade de um ponto
-    function updatePoint(idx, field, value) {
-      points[idx][field] = value;
-    }
+    function updatePoint(idx,field,value){ points[idx][field]=value; }
+    function removePoint(idx){ const p=points[idx]; if(p.marker) p.marker.remove(); points.splice(idx,1); render(); }
 
-    // Remove ponto
-    function removePoint(idx) {
-      const p = points[idx];
-      if (p.marker) p.marker.remove();
-      points.splice(idx, 1);
-      render();
-    }
-
-    // Eventos delegados
-    list.addEventListener('click', (e) => {
-      const btn = e.target;
-      if (btn.tagName === 'BUTTON' && btn.dataset.remove) {
-        const idx = Number(btn.dataset.remove);
-        removePoint(idx);
-      }
+    list.addEventListener('click', e=>{
+      const btn=e.target;
+      if(btn.tagName==='BUTTON' && btn.dataset.remove) removePoint(Number(btn.dataset.remove));
     });
-    list.addEventListener('input', (e) => {
-      const el   = e.target;
-      const idx  = Number(el.dataset.idx);
-      const field= el.dataset.field;
-      if (field && field !== 'file') {
-        updatePoint(idx, field, el.value);
-      }
+    list.addEventListener('input', e=>{
+      const el=e.target, idx=Number(el.dataset.idx), field=el.dataset.field;
+      if(field && field!=='file') updatePoint(idx,field,el.value);
     });
-    list.addEventListener('change', (e) => {
-      const el   = e.target;
-      const idx  = Number(el.dataset.idx);
-      const field= el.dataset.field;
-      if (field === 'file') {
-        const file = el.files && el.files[0] ? el.files[0] : null;
-        updatePoint(idx, 'file', file);
-      }
+    list.addEventListener('change', e=>{
+      const el=e.target, idx=Number(el.dataset.idx), field=el.dataset.field;
+      if(field==='file'){ const file = el.files && el.files[0] ? el.files[0] : null; updatePoint(idx,'file',file); }
     });
 
-    // Clica no mapa -> adiciona marcador
-    map.on('click', (e) => {
-      const { lng, lat } = e.lngLat;
-      const marker = new mapboxgl.Marker({ color: '#ffa94d' }).setLngLat([lng, lat]).addTo(map);
-      points.push({ lat, lng, title:'', description:'', date:'', file: null, marker });
-      render();
+    map.on('click', e=>{
+      const lng=e.lngLat.lng, lat=e.lngLat.lat;
+      const marker=new mapboxgl.Marker({color:'#ffa94d'}).setLngLat([lng,lat]).addTo(map);
+      points.push({lat,lng,title:'',description:'',date:'',file:null,marker}); render();
     });
 
-    // Salvar pontos no banco
-    document.getElementById('saveBtn').addEventListener('click', async () => {
-      errorEl.style.display = 'none';
-      if (points.length === 0) {
-        errorEl.textContent = 'Adicione pelo menos 1 ponto.';
-        errorEl.style.display = 'block';
-        return;
-      }
-      if (points.some(p => !p.title.trim())) {
-        errorEl.textContent = 'Todo ponto precisa de um título.';
-        errorEl.style.display = 'block';
-        return;
-      }
-      // Desativa botão durante upload
-      const saveBtn = document.getElementById('saveBtn');
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Salvando...';
-      try {
+    // ====== SALVAR ======
+    document.getElementById('saveBtn').addEventListener('click', async ()=>{
+      errorEl.style.display='none';
+      if(!points.length){ errorEl.textContent='Adicione pelo menos 1 ponto.'; errorEl.style.display='block'; return; }
+      if(points.some(p=>!p.title || !p.title.trim())){ errorEl.textContent='Todo ponto precisa de um título.'; errorEl.style.display='block'; return; }
+
+      const saveBtn=document.getElementById('saveBtn'); saveBtn.disabled=true; saveBtn.textContent='Salvando...';
+
+      try{
         const { data } = await supabase.auth.getSession();
-        const user = data.session?.user;
-        if (!user) throw new Error('Sessão expirada. Faça login novamente.');
-        const payload = [];
-        // Upload fotos e prepara payload
-        for (const p of points) {
-          let photoPath = null;
-          if (p.file) {
-            // Gera nome único: userId/timestamp_random.ext
-            const ext = p.file.name.split('.').pop();
-            const fileName =
-              user.id + '/' +
-              Date.now() + '_' +
-              Math.random().toString(36).substring(2) + '.' +
-              ext;
+        const user = data.session?.user; if(!user) throw new Error('Sessão expirada. Faça login novamente.');
 
-            const { data: uploadData, error: uploadError } =
-              await supabase.storage.from(BUCKET_NAME).upload(fileName, p.file);
-            if (uploadError) throw uploadError;
-            photoPath = uploadData.path;
+        const payload = [];
+        for(const p of points){
+          let photoUrl=null;
+          if(p.file){
+            const ext = p.file.name.split('.').pop();
+            const fileName = user.id + '/' + Date.now() + '_' + Math.random().toString(36).substring(2) + '.' + ext;
+
+            const { data: up, error: upErr } =
+              await supabase.storage.from(BUCKET_NAME).upload(fileName, p.file, { contentType: p.file.type });
+            if(upErr) throw upErr;
+
+            const { data: pub } = supabase.storage.from(BUCKET_NAME).getPublicUrl(fileName);
+            photoUrl = pub.publicUrl; // ← URL pública salva no banco
           }
+
           payload.push({
             user_id: user.id,
             title: p.title || null,
             description: p.description || null,
-            lat: p.lat,
-            lng: p.lng,
+            lat: p.lat, lng: p.lng,
             happened_at: p.date || null,
-            photo_url: photoPath
+            photo_url: photoUrl
           });
         }
-        // Insere todos os pontos
-        const { error: insertError } = await supabase.from('map_points').insert(payload);
-        if (insertError) throw insertError;
-        // Redireciona para feed
-        window.location.href = 'feed.html';
-      } catch (err) {
-        errorEl.textContent = err.message || 'Falha ao salvar.';
-        errorEl.style.display = 'block';
-        saveBtn.disabled = false;
-        saveBtn.textContent = 'Salvar pontos e avançar';
+
+        const { error: insErr } = await supabase.from('map_points').insert(payload);
+        if(insErr) throw insErr;
+
+        location.href='feed.html';
+      }catch(err){
+        errorEl.textContent = (err && err.message) ? err.message : 'Falha ao salvar.';
+        errorEl.style.display='block';
+        saveBtn.disabled=false; saveBtn.textContent='Salvar pontos e avançar';
       }
     });
   </script>
