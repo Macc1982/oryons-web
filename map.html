@@ -61,7 +61,7 @@
     // ====== SUPABASE ======
     const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
-    const BUCKET_NAME = 'map-photos'; // <- certifique-se de criar como PUBLIC
+    const BUCKET_NAME = 'maps_public'; // <- certifique-se de criar como PUBLIC
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true } });
 
     // checa sessão (não redireciona em file:// para facilitar teste)
