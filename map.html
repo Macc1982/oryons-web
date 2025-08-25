@@ -13,7 +13,7 @@
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- Turf -->
+  <!-- Turf (não obrigatório aqui, mas deixei se quiser usar depois) -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 
   <style>
@@ -61,10 +61,10 @@
     // ====== SUPABASE ======
     const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
-    const BUCKET_NAME = 'map-photos'; // <- certifique-se de criar como PUBLIC
+    const BUCKET_NAME = 'maps_public'; // <- bucket público no Storage
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true } });
 
-    // checa sessão (não redireciona em file:// para facilitar teste)
+    // checa sessão (não redireciona em file:// para facilitar sandbox)
     (async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session && location.protocol !== 'file:') location.href = 'login.html';
@@ -73,13 +73,42 @@
     // ====== MAPBOX ======
     mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
     const map = new mapboxgl.Map({
-      container: 'map', style: 'mapbox://styles/mapbox/dark-v11',
-      projection: 'globe', center: [-40, -10], zoom: 2, interactive: true, attributionControl: false
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      projection: 'globe',
+      center: [-40, -10],
+      zoom: 2,
+      interactive: true,
+      attributionControl: false
     });
     map.addControl(new mapboxgl.AttributionControl({ compact: true }));
-    map.on('load', () => map.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 }));
 
-    // ====== UI ======
+    // === desenha pontos do banco (marcador + popup) ===
+    function addMarkerFromRow(row, opts){
+      const options = opts || {};
+      const marker = new mapboxgl.Marker({ color: '#ffa94d' })
+        .setLngLat([row.lng, row.lat])
+        .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(
+          '<strong>' + (row.title || '') + '</strong>' +
+          (row.photo_url ? '<div style="margin-top:6px"><img src="' + row.photo_url + '" style="max-width:180px;border-radius:8px;border:1px solid #0003"></div>' : '') +
+          (row.description ? '<div style="margin-top:6px;font-size:12px;opacity:.8">' + row.description + '</div>' : '')
+        ))
+        .addTo(map);
+
+      if (options.pushToList) {
+        points.push({
+          lat: row.lat,
+          lng: row.lng,
+          title: row.title || '',
+          description: row.description || '',
+          date: row.happened_at || '',
+          file: null,
+          marker
+        });
+      }
+    }
+
+    // ====== UI (lista lateral) ======
     const points = [];
     const list = document.getElementById('list');
     const errorEl = document.getElementById('error');
@@ -127,10 +156,38 @@
       if(field==='file'){ const file = el.files && el.files[0] ? el.files[0] : null; updatePoint(idx,'file',file); }
     });
 
+    // clique no mapa -> cria ponto temporário (para salvar depois)
     map.on('click', e=>{
       const lng=e.lngLat.lng, lat=e.lngLat.lat;
       const marker=new mapboxgl.Marker({color:'#ffa94d'}).setLngLat([lng,lat]).addTo(map);
       points.push({lat,lng,title:'',description:'',date:'',file:null,marker}); render();
+    });
+
+    // ====== carregar pontos já salvos do usuário ======
+    async function loadMyPoints() {
+      const { data: sess } = await supabase.auth.getSession();
+      const user = sess.session?.user;
+      if (!user) return;
+
+      const { data: rows, error } = await supabase
+        .from('map_points')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Erro ao carregar pontos:', error.message);
+        return;
+      }
+
+      rows.forEach(row => addMarkerFromRow(row, { pushToList: true }));
+      render();
+    }
+
+    // ====== on load do mapa ======
+    map.on('load', () => {
+      map.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 });
+      loadMyPoints();
     });
 
     // ====== SALVAR ======
@@ -147,6 +204,7 @@
 
         const payload = [];
         for(const p of points){
+          // pontos criados nesta sessão (os carregados do banco não têm 'file')
           let photoUrl=null;
           if(p.file){
             const ext = p.file.name.split('.').pop();
@@ -157,9 +215,10 @@
             if(upErr) throw upErr;
 
             const { data: pub } = supabase.storage.from(BUCKET_NAME).getPublicUrl(fileName);
-            photoUrl = pub.publicUrl; // ← URL pública salva no banco
+            photoUrl = pub.publicUrl; // URL pública
           }
 
+          // sempre envia coordenadas e texto
           payload.push({
             user_id: user.id,
             title: p.title || null,
@@ -183,3 +242,4 @@
   </script>
 </body>
 </html>
+   
