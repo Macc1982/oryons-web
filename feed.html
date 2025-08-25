@@ -1,26 +1,4 @@
-[22:02, 24/08/2025] .: <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="utf-8" />
-  <title>Mapa • Globo 3D (Marcar Pontos)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="data:,">
-
-  <!-- Mapbox GL -->
-  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>
-
-  <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Turf -->
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
-
-  <style>
-    :root{ --bg:#0b1221; --panel:#0b1221; --accent:#2638ff; --halo:#ff7a18; --dot:#ffa94d; }
-    *{box-sizing:border-box}
-    html…
-[22:04, 24/08/2025] .: <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
@@ -29,7 +7,8 @@
   <link rel="icon" href="data:,">
   <style>
     :root{ --bg:#0b1221; --card:#11182b; --text:#e6efff; --muted:#8ea3c7; --accent:#2638ff; }
-    *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
     header{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid #ffffff1a}
     a.btn{background:var(--accent);color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:600}
     main{max-width:980px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr;gap:16px}
@@ -55,35 +34,33 @@
 
     async function carregar(){
       const { data: sess } = await supabase.auth.getSession();
-      if(!sess.session && location.protocol!=='file:'){ location.href='login.html'; return; }
-
+      if (!sess.session && location.protocol !== 'file:') { location.href = 'login.html'; return; }
       const userId = sess.session?.user?.id || null;
 
-      // busca seus pontos
+      // ——— FEED DO USUÁRIO (retorna ARRAY; sem .single())
       const { data: rows, error } = await supabase
         .from('map_points')
         .select('*')
-        .order('created_at', { ascending:false })
-        .maybeSingle(false)
-        .then(r => r); // só para manter simples
+        .eq('user_id', userId)                 // remova esta linha para feed geral
+        .order('created_at', { ascending: false });
 
-      if(error){ console.error(error); document.getElementById('feed').innerHTML = '<p class="muted">Erro ao carregar.</p>'; return; }
+      const list = document.getElementById('feed');
+      if (error) { console.error(error); list.innerHTML = '<p class="muted">Erro ao carregar.</p>'; return; }
+      if (!rows || !rows.length) { list.innerHTML = '<p class="muted">Sem pontos por enquanto.</p>'; return; }
 
-      const lista = document.getElementById('feed'); lista.innerHTML='';
-      if(!rows || !rows.length){ lista.innerHTML = '<p class="muted">Sem pontos por enquanto.</p>'; return; }
-
-      for(const row of rows){
-        const card = document.createElement('article'); card.className='card';
-        const isMine = userId && row.user_id === userId;
+      list.innerHTML = '';
+      for (const row of rows) {
+        const card = document.createElement('article');
+        card.className = 'card';
         card.innerHTML =
-          '<h3>'+ (row.title ?? '') + (isMine ? ' <span class="muted">(seu)</span>' : '') + '</h3>' +
-          (row.photo_url ? '<img src="'+row.photo_url+'" alt="Foto do ponto">' : '') +
-          (row.description ? '<p>'+row.description+'</p>' : '') +
-          '<p class="muted">'+
-            (row.happened_at || '')+
-            (row.lat && row.lng ? ' • '+Number(row.lat).toFixed(5)+', '+Number(row.lng).toFixed(5) : '')+
+          '<h3>' + (row.title ?? '') + '</h3>' +
+          (row.photo_url ? '<img src="'+ row.photo_url +'" alt="Foto do ponto">' : '') +
+          (row.description ? '<p>'+ row.description +'</p>' : '') +
+          '<p class="muted">' +
+            (row.happened_at || '') +
+            (row.lat && row.lng ? ' • ' + Number(row.lat).toFixed(5) + ', ' + Number(row.lng).toFixed(5) : '') +
           '</p>';
-        lista.appendChild(card);
+        list.appendChild(card);
       }
     }
     carregar();
