@@ -144,7 +144,7 @@ function addAvatarMarker(p){
 
       map.on('click', layerId, (e)=>{
         const p = e.features[0].properties;
-        const html = <strong>${p.from_name}</strong> &nbsp;—&nbsp; <strong>${p.to_name}</strong><br>${p.rel_label};
+        const html = `<strong>${p.from_name}</strong> &nbsp;—&nbsp; <strong>${p.to_name}</strong><br>${p.rel_label}`;
         new mapboxgl.Popup({closeOnClick:true}).setLngLat(e.lngLat).setHTML(html).addTo(map);
       });
       map.on('mouseenter', layerId, ()=> map.getCanvas().style.cursor = 'pointer');
