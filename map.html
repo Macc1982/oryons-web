@@ -2,244 +2,260 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Mapa • Globo 3D (Marcar Pontos)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="data:,">
+  <title>Oris • Mapa</title>
 
-  <!-- Mapbox GL -->
+  <!-- Mapbox + Turf -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>
-
-  <!-- Supabase JS -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <!-- Turf (não obrigatório aqui, mas deixei se quiser usar depois) -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
 
+  <!-- Supabase -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+
   <style>
-    :root{ --bg:#0b1221; --panel:#0b1221; --accent:#2638ff; --halo:#ff7a18; --dot:#ffa94d; }
-    *{box-sizing:border-box}
-    html,body{height:100%;margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#fff}
-    .grid{display:grid;grid-template-columns:1fr;min-height:100vh}
-    @media(min-width:900px){.grid{grid-template-columns:1.3fr 1fr}}
-    #map{width:100%;height:50vh}
-    @media(min-width:900px){#map{height:100vh}}
-    .panel{background:var(--panel);padding:18px;border-left:1px solid #ffffff20;display:flex;flex-direction:column;gap:12px}
-    h1{margin:0;font-size:22px;font-weight:600}
-    .muted{color:#8ea3c7;font-size:13px}
-    .point{border:1px solid #ffffff20;border-radius:12px;padding:12px;margin-bottom:12px}
-    .point label{font-size:12px;color:#ccd4e0;margin-top:6px;display:block}
-    .point input,.point textarea{width:100%;padding:8px 10px;border-radius:10px;border:0;background:#fff;color:#111;font-size:14px;margin-top:4px}
-    .point input[type="file"]{padding:2px;color:#ddd;background:none}
-    .point .meta{font-size:11px;color:#8ea3c7;margin-top:6px}
-    .error{color:#e11d48;font-size:14px}
-    .buttons{display:flex;gap:8px;flex-wrap:wrap}
-    .btn{padding:10px 14px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
-    .btn-outline{background:#ffffff10;border:1px solid #ffffff30;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;display:inline-block;line-height:1}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
+    :root{
+      --bg:#0b1221; --panel:#0f1830; --stroke:#1e2b55; --brand:#3857ff; --txt:#fff; --muted:#a9b6d9;
+    }
+    body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,Arial}
+    #map{position:fixed;inset:0}
+    .avatar-pin{
+      width:44px;height:44px;border-radius:50%;overflow:hidden;border:2px solid #fff;box-shadow:0 0 0 2px var(--brand);background:#111
+    }
+    .avatar-pin img{width:100%;height:100%;object-fit:cover}
+    .mapboxgl-popup-content{background:#0f1830;color:#fff;border:1px solid #1e2b55;border-radius:10px}
+
+    /* Painel de Conexão */
+    .panel{
+      position:fixed;right:16px;top:16px;width:320px;background:var(--panel);
+      border:1px solid var(--stroke);border-radius:12px;padding:14px;z-index:10;backdrop-filter: blur(6px);
+    }
+    .panel h3{margin:0 0 8px;font-size:18px}
+    .row{display:grid;grid-template-columns:1fr;gap:10px}
+    select,button{width:100%;padding:10px;border-radius:10px;border:1px solid var(--stroke);background:#0b1221;color:#fff}
+    button{cursor:pointer;border-color:var(--brand)}
+    .hint{color:var(--muted);font-size:.9rem;margin-top:6px}
+    .pill{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;color:#d6defa}
+    .dot{width:10px;height:10px;border-radius:50%}
   </style>
 </head>
 <body>
-  <div class="grid">
-    <div id="map"></div>
-    <section class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h1>Marque sua história</h1>
-        <a class="btn-outline" href="feed.html">Ir para o Feed</a>
-      </div>
-      <p class="muted">Clique no mapa para adicionar um ponto. Preencha título, descrição, data e (opcional) envie uma foto.</p>
-      <div id="error" class="error" style="display:none"></div>
-      <div id="list" style="flex:1;overflow-y:auto;padding-right:4px"></div>
-      <div class="buttons">
-        <button class="btn" id="saveBtn">Salvar pontos e avançar</button>
-        <a class="btn-outline" href="feed.html">Pular por agora</a>
-      </div>
-    </section>
+<div id="map"></div>
+
+<!-- Painel para criar conexão -->
+<div class="panel">
+  <h3>Nova conexão</h3>
+  <div class="row">
+    <select id="fromSelect">
+      <option value="">De (perfil A)</option>
+    </select>
+    <select id="toSelect">
+      <option value="">Para (perfil B)</option>
+    </select>
+    <select id="relSelect">
+      <option value="">Tipo de vínculo</option>
+      <option value="work_meet">Azul • se conheceram no trabalho</option>
+      <option value="school">Amarelo • escola</option>
+      <option value="gym">Verde • academia</option>
+      <option value="relatives">Vermelho • parentes</option>
+      <option value="coworkers">Laranja • colegas de trabalho</option>
+      <option value="schoolmates">Cinza • colegas de escola</option>
+    </select>
+    <button id="connectBtn">Conectar perfis</button>
+    <div class="hint">
+      <div class="pill"><span class="dot" style="background:#1f6fff"></span>Azul trabalho</div> ·
+      <div class="pill"><span class="dot" style="background:#ffd21f"></span>Amarelo escola</div> ·
+      <div class="pill"><span class="dot" style="background:#29d17d"></span>Verde academia</div>
+      <br>
+      <div class="pill"><span class="dot" style="background:#ff2d55"></span>Vermelho parentes</div> ·
+      <div class="pill"><span class="dot" style="background:#ff8a1f"></span>Laranja colegas trab.</div> ·
+      <div class="pill"><span class="dot" style="background:#9aa0a6"></span>Cinza colegas esc.</div>
+      <div id="status" class="hint" style="margin-top:8px;"></div>
+    </div>
   </div>
+</div>
 
-  <script>
-    // ====== SUPABASE ======
-    const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
-    const BUCKET_NAME = 'maps_public'; // <- bucket público no Storage
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true } });
+<script>
+  // ====== CHAVES ======
+  const MAPBOX_TOKEN   = 'INSIRA_SEU_MAPBOX_TOKEN_AQUI';
+  const SUPABASE_URL   = 'https://SEU-PROJ.supabase.co';
+  const SUPABASE_ANON  = 'SEU_ANON_KEY_AQUI';
 
-    // checa sessão (não redireciona em file:// para facilitar sandbox)
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session && location.protocol !== 'file:') location.href = 'login.html';
-    })();
+  // ====== MAPA ======
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [0,10],
+    zoom: 2
+  });
 
-    // ====== MAPBOX ======
-    mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
-    const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/dark-v11',
-      projection: 'globe',
-      center: [-40, -10],
-      zoom: 2,
-      interactive: true,
-      attributionControl: false
-    });
-    map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+  const supabase = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-    // === desenha pontos do banco (marcador + popup) ===
-    function addMarkerFromRow(row, opts){
-      const options = opts || {};
-      const marker = new mapboxgl.Marker({ color: '#ffa94d' })
-        .setLngLat([row.lng, row.lat])
-        .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(
-          '<strong>' + (row.title || '') + '</strong>' +
-          (row.photo_url ? '<div style="margin-top:6px"><img src="' + row.photo_url + '" style="max-width:180px;border-radius:8px;border:1px solid #0003"></div>' : '') +
-          (row.description ? '<div style="margin-top:6px;font-size:12px;opacity:.8">' + row.description + '</div>' : '')
-        ))
-        .addTo(map);
+  // Paleta de cores por relação
+  const REL_COLORS = {
+    work_meet:   '#1f6fff', // Azul — se conheceram no trabalho
+    school:      '#ffd21f', // Amarelo — escola
+    gym:         '#29d17d', // Verde — academia
+    relatives:   '#ff2d55', // Vermelho — parentes
+    coworkers:   '#ff8a1f', // Laranja — colegas de trabalho
+    schoolmates: '#9aa0a6'  // Cinza — colegas de escola
+  };
 
-      if (options.pushToList) {
-        points.push({
-          lat: row.lat,
-          lng: row.lng,
-          title: row.title || '',
-          description: row.description || '',
-          date: row.happened_at || '',
-          file: null,
-          marker
-        });
-      }
-    }
+  function relationLabel(key){
+    return {
+      work_meet: 'Se conheceram no trabalho',
+      school: 'Escola',
+      gym: 'Academia',
+      relatives: 'Parentes',
+      coworkers: 'Colegas de trabalho',
+      schoolmates: 'Colegas de escola'
+    }[key] || 'Vínculo';
+  }
 
-    // ====== UI (lista lateral) ======
-    const points = [];
-    const list = document.getElementById('list');
-    const errorEl = document.getElementById('error');
+  // ---- Marcadores com avatar
+  function addAvatarMarker(p){
+    const el = document.createElement('div');
+    el.className = 'avatar-pin';
+    el.innerHTML = <img src="${p.avatar_url}" alt="${p.display_name || 'Usuário'}">;
+    const m = new mapboxgl.Marker(el).setLngLat([p.lng, p.lat]).addTo(map);
+    const popup = new mapboxgl.Popup({ offset: 24 })
+      .setHTML(<strong>${p.display_name ?? 'Usuário'}</strong>);
+    m.setPopup(popup);
+  }
 
-    function render(){
-      list.innerHTML = '';
-      if (!points.length){
-        const p = document.createElement('p');
-        p.className='muted'; p.textContent='Nenhum ponto adicionado ainda.'; list.appendChild(p); return;
-      }
-      points.forEach((pt,idx)=>{
-        const div = document.createElement('div');
-        div.className='point';
-        div.innerHTML =
-          '<div style="display:flex;justify-content:space-between;align-items:center">'+
-            '<strong>Ponto '+(idx+1)+'</strong>'+
-            '<button type="button" data-remove="'+idx+'" style="background:#ffffff18;border:1px solid #ffffff30;color:#fff;padding:6px 10px;border-radius:8px;font-size:12px">Remover</button>'+
-          '</div>'+
-          '<label>Título</label>'+
-          '<input data-field="title" data-idx="'+idx+'" value="'+(pt.title||'')+'" placeholder="Ex: Onde nasci" />'+
-          '<label>Descrição</label>'+
-          '<textarea data-field="description" data-idx="'+idx+'" placeholder="Algum contexto">'+(pt.description||'')+'</textarea>'+
-          '<label>Data (opcional)</label>'+
-          '<input type="date" data-field="date" data-idx="'+idx+'" value="'+(pt.date||'')+'" />'+
-          '<label>Foto (opcional)</label>'+
-          '<input type="file" accept="image/*" data-field="file" data-idx="'+idx+'" />'+
-          '<p class="meta">Lat/Lng: '+pt.lat.toFixed(5)+', '+pt.lng.toFixed(5)+'</p>';
-        list.appendChild(div);
+  // ---- Curva entre dois pontos
+  function addCurveLine(a, b, color, featureId, properties={}){
+    // Great circle com suavidade
+    const line = turf.greatCircle([a.lng, a.lat], [b.lng, b.lat], { npoints: 128, properties });
+    const sourceId = conn-src-${featureId};
+    const layerId  = conn-lyr-${featureId};
+
+    if(!map.getSource(sourceId)){
+      map.addSource(sourceId, { type:'geojson', data: line });
+      map.addLayer({
+        id: layerId, type:'line', source: sourceId,
+        layout:{ 'line-join':'round', 'line-cap':'round' },
+        paint:{ 'line-color': color, 'line-width': 2.5, 'line-opacity': 0.9 }
       });
+
+      map.on('click', layerId, (e)=>{
+        const p = e.features[0].properties;
+        const html = <strong>${p.from_name}</strong> &nbsp;—&nbsp; <strong>${p.to_name}</strong><br>${p.rel_label};
+        new mapboxgl.Popup({closeOnClick:true}).setLngLat(e.lngLat).setHTML(html).addTo(map);
+      });
+      map.on('mouseenter', layerId, ()=> map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', layerId, ()=> map.getCanvas().style.cursor = '');
+    } else {
+      map.getSource(sourceId).setData(line);
+    }
+  }
+
+  // ---- Carregar perfis e conexões
+  let profiles = [];
+  const byId = {};
+
+  async function loadAll(){
+    const { data: profs } = await supabase.from('profiles').select('*').order('created_at');
+    profiles = profs || [];
+    profiles.forEach(p=>{ byId[p.id]=p; addAvatarMarker(p); });
+
+    // popular selects do painel
+    fillSelects();
+
+    const { data: conns } = await supabase.from('connections').select('*').order('created_at');
+    conns?.forEach(c=>{
+      const a = byId[c.from_profile], b = byId[c.to_profile];
+      if(!a || !b) return;
+      addCurveLine(a,b, REL_COLORS[c.relation_type]||'#888', c.id, {
+        from_name: a.display_name || 'Usuário A',
+        to_name:   b.display_name || 'Usuário B',
+        rel_label: relationLabel(c.relation_type)
+      });
+    });
+  }
+
+  function fillSelects(){
+    const fromSel = document.getElementById('fromSelect');
+    const toSel   = document.getElementById('toSelect');
+    [fromSel, toSel].forEach(sel=>{
+      // limpa mantendo o primeiro option
+      sel.querySelectorAll('option:not(:first-child)').forEach(o=>o.remove());
+      profiles.forEach(p=>{
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.display_name || p.id.slice(0,8);
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  // ---- Criar conexão via painel
+  async function createConnection(){
+    const status = document.getElementById('status');
+    const fromId = document.getElementById('fromSelect').value;
+    const toId   = document.getElementById('toSelect').value;
+    const rel    = document.getElementById('relSelect').value;
+
+    if(!fromId || !toId || !rel){
+      status.textContent = 'Selecione Perfil A, Perfil B e o tipo de vínculo.';
+      return;
+    }
+    if(fromId === toId){
+      status.textContent = 'Escolha perfis diferentes.';
+      return;
     }
 
-    function updatePoint(idx,field,value){ points[idx][field]=value; }
-    function removePoint(idx){ const p=points[idx]; if(p.marker) p.marker.remove(); points.splice(idx,1); render(); }
-
-    list.addEventListener('click', e=>{
-      const btn=e.target;
-      if(btn.tagName==='BUTTON' && btn.dataset.remove) removePoint(Number(btn.dataset.remove));
-    });
-    list.addEventListener('input', e=>{
-      const el=e.target, idx=Number(el.dataset.idx), field=el.dataset.field;
-      if(field && field!=='file') updatePoint(idx,field,el.value);
-    });
-    list.addEventListener('change', e=>{
-      const el=e.target, idx=Number(el.dataset.idx), field=el.dataset.field;
-      if(field==='file'){ const file = el.files && el.files[0] ? el.files[0] : null; updatePoint(idx,'file',file); }
-    });
-
-    // clique no mapa -> cria ponto temporário (para salvar depois)
-    map.on('click', e=>{
-      const lng=e.lngLat.lng, lat=e.lngLat.lat;
-      const marker=new mapboxgl.Marker({color:'#ffa94d'}).setLngLat([lng,lat]).addTo(map);
-      points.push({lat,lng,title:'',description:'',date:'',file:null,marker}); render();
-    });
-
-    // ====== carregar pontos já salvos do usuário ======
-    async function loadMyPoints() {
-      const { data: sess } = await supabase.auth.getSession();
-      const user = sess.session?.user;
-      if (!user) return;
-
-      const { data: rows, error } = await supabase
-        .from('map_points')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.warn('Erro ao carregar pontos:', error.message);
-        return;
-      }
-
-      rows.forEach(row => addMarkerFromRow(row, { pushToList: true }));
-      render();
+    status.textContent = 'Criando conexão...';
+    try{
+      const { error } = await supabase.from('connections').insert({
+        from_profile: fromId,
+        to_profile: toId,
+        relation_type: rel
+      });
+      if(error) throw error;
+      status.textContent = 'Conexão criada!';
+      // os draws chegam via Realtime; não precisa redesenhar manual aqui
+    }catch(e){
+      console.error(e);
+      status.textContent = 'Erro ao criar conexão.';
     }
+  }
 
-    // ====== on load do mapa ======
-    map.on('load', () => {
-      map.setFog({ color:'#0b1020','high-color':'#2a3a64','space-color':'#000','horizon-blend':0.2 });
-      loadMyPoints();
-    });
+  document.getElementById('connectBtn').addEventListener('click', createConnection);
 
-    // ====== SALVAR ======
-    document.getElementById('saveBtn').addEventListener('click', async ()=>{
-      errorEl.style.display='none';
-      if(!points.length){ errorEl.textContent='Adicione pelo menos 1 ponto.'; errorEl.style.display='block'; return; }
-      if(points.some(p=>!p.title || !p.title.trim())){ errorEl.textContent='Todo ponto precisa de um título.'; errorEl.style.display='block'; return; }
+  // ---- Inicialização + Realtime
+  map.on('load', async ()=>{
+    await loadAll();
 
-      const saveBtn=document.getElementById('saveBtn'); saveBtn.disabled=true; saveBtn.textContent='Salvando...';
+    // Novos perfis em tempo real
+    supabase
+      .channel('rt-profiles')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' },
+        ({ new: p }) => {
+          profiles.push(p);
+          byId[p.id]=p;
+          addAvatarMarker(p);
+          fillSelects();
+        })
+      .subscribe();
 
-      try{
-        const { data } = await supabase.auth.getSession();
-        const user = data.session?.user; if(!user) throw new Error('Sessão expirada. Faça login novamente.');
-
-        const payload = [];
-        for(const p of points){
-          // pontos criados nesta sessão (os carregados do banco não têm 'file')
-          let photoUrl=null;
-          if(p.file){
-            const ext = p.file.name.split('.').pop();
-            const fileName = user.id + '/' + Date.now() + '_' + Math.random().toString(36).substring(2) + '.' + ext;
-
-            const { data: up, error: upErr } =
-              await supabase.storage.from(BUCKET_NAME).upload(fileName, p.file, { contentType: p.file.type });
-            if(upErr) throw upErr;
-
-            const { data: pub } = supabase.storage.from(BUCKET_NAME).getPublicUrl(fileName);
-            photoUrl = pub.publicUrl; // URL pública
-          }
-
-          // sempre envia coordenadas e texto
-          payload.push({
-            user_id: user.id,
-            title: p.title || null,
-            description: p.description || null,
-            lat: p.lat, lng: p.lng,
-            happened_at: p.date || null,
-            photo_url: photoUrl
+    // Novas conexões em tempo real
+    supabase
+      .channel('rt-connections')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'connections' },
+        async ({ new: c })=>{
+          const a = byId[c.from_profile] || (await supabase.from('profiles').select('*').eq('id', c.from_profile).single()).data;
+          const b = byId[c.to_profile]   || (await supabase.from('profiles').select('*').eq('id', c.to_profile).single()).data;
+          if(!a || !b) return;
+          addCurveLine(a,b, REL_COLORS[c.relation_type]||'#888', c.id, {
+            from_name: a.display_name || 'Usuário A',
+            to_name:   b.display_name || 'Usuário B',
+            rel_label: relationLabel(c.relation_type)
           });
-        }
-
-        const { error: insErr } = await supabase.from('map_points').insert(payload);
-        if(insErr) throw insErr;
-
-        location.href='feed.html';
-      }catch(err){
-        errorEl.textContent = (err && err.message) ? err.message : 'Falha ao salvar.';
-        errorEl.style.display='block';
-        saveBtn.disabled=false; saveBtn.textContent='Salvar pontos e avançar';
-      }
-    });
-  </script>
+        })
+      .subscribe();
+  });
+</script>
 </body>
-</html>
-   
+</html> 
