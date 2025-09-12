@@ -131,8 +131,8 @@ function addAvatarMarker(p){
   function addCurveLine(a, b, color, featureId, properties={}){
     // Great circle com suavidade
     const line = turf.greatCircle([a.lng, a.lat], [b.lng, b.lat], { npoints: 128, properties });
-    const sourceId = conn-src-${featureId};
-    const layerId  = conn-lyr-${featureId};
+    const sourceId = `conn-src-${featureId}`;
+    const layerId  = `conn-lyr-${featureId}`;
 
     if(!map.getSource(sourceId)){
       map.addSource(sourceId, { type:'geojson', data: line });
