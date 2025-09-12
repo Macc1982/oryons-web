@@ -113,16 +113,19 @@
     }[key] || 'Vínculo';
   }
 
-  // ---- Marcadores com avatar
-  function addAvatarMarker(p){
-    const el = document.createElement('div');
-    el.className = 'avatar-pin';
-    el.innerHTML = <img src="${p.avatar_url}" alt="${p.display_name || 'Usuário'}">;
-    const m = new mapboxgl.Marker(el).setLngLat([p.lng, p.lat]).addTo(map);
-    const popup = new mapboxgl.Popup({ offset: 24 })
-      .setHTML(<strong>${p.display_name ?? 'Usuário'}</strong>);
-    m.setPopup(popup);
-  }
+// ---- Marcadores com avatar
+function addAvatarMarker(p){
+  const el = document.createElement('div');
+  el.className = 'avatar-pin';
+  el.innerHTML = <img src="${p.avatar_url}" alt="${p.display_name || 'Usuário'}">;
+
+  const m = new mapboxgl.Marker(el).setLngLat([p.lng, p.lat]).addTo(map);
+
+  const popup = new mapboxgl.Popup({ offset: 24 })
+    .setHTML(<strong>${p.display_name ?? 'Usuário'}</strong>);
+
+  m.setPopup(popup);
+}
 
   // ---- Curva entre dois pontos
   function addCurveLine(a, b, color, featureId, properties={}){
