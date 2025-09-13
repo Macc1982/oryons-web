@@ -2,68 +2,184 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Feed • Seus Pontos</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="data:,">
+  <title>Oris • Feed</title>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <style>
-    :root{ --bg:#0b1221; --card:#11182b; --text:#e6efff; --muted:#8ea3c7; --accent:#2638ff; }
+    :root{--bg:#0b1221;--card:#0f1830;--stroke:#1e2b55;--txt:#fff;--muted:#9fb1e6;--brand:#3857ff}
     *{box-sizing:border-box}
-    html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    header{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;border-bottom:1px solid #ffffff1a}
-    a.btn{background:var(--accent);color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:600}
-    main{max-width:980px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr;gap:16px}
-    .card{background:var(--card);border:1px solid #ffffff1a;border-radius:12px;padding:14px}
-    .card h3{margin:0 0 8px}
-    .card img{width:100%;height:auto;border-radius:10px;margin:10px 0;border:1px solid #0003}
-    .muted{color:var(--muted);font-size:13px}
+    body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,Arial}
+    header{position:sticky;top:0;background:#0d152a;border-bottom:1px solid var(--stroke);padding:12px 16px;display:flex;gap:12px;align-items:center;z-index:9}
+    header a{color:#fff;text-decoration:none;border:1px solid var(--stroke);padding:8px 10px;border-radius:10px}
+    .wrap{max-width:920px;margin:12px auto;padding:12px}
+    .publisher{background:var(--card);border:1px solid var(--stroke);border-radius:12px;padding:12px;margin-bottom:16px}
+    input,button{width:100%;padding:10px;border-radius:10px;border:1px solid var(--stroke);background:#0b1221;color:#fff}
+    button{cursor:pointer;border-color:var(--brand)}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px}
+    .post{background:var(--card);border:1px solid var(--stroke);border-radius:12px;overflow:hidden}
+    .postHeader{display:flex;gap:10px;align-items:center;padding:12px}
+    .avatar{width:38px;height:38px;border-radius:50%;overflow:hidden;border:1px solid #fff}
+    .avatar img{width:100%;height:100%;object-fit:cover}
+    .caption{padding:12px;color:#cdd7ff}
+    .imgBox{width:100%;background:#0b1221}
+    .imgBox img{width:100%;display:block}
+    .muted{color:var(--muted);font-size:.9rem}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-  <header>
-    <strong>Seu feed</strong>
-    <a class="btn" href="map.html">Adicionar pontos</a>
-  </header>
+<header>
+  <a href="map.html">🌍 Mapa</a>
+  <a href="signup.html">➕ Criar conta</a>
+  <span class="muted">Feed</span>
+</header>
 
-  <main id="feed"><p class="muted">Carregando...</p></main>
+<div class="wrap">
+  <!-- Publicador -->
+  <div class="publisher">
+    <h3 style="margin:0 0 8px">Nova publicação</h3>
+    <p class="muted" style="margin:4px 0 10px">
+      O post será publicado no feed do perfil logado (salvo do <code>localStorage</code> via signup).
+    </p>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:10px">
+      <input id="caption" placeholder="Escreva uma legenda (opcional)"/>
+      <input id="imageFile" type="file" accept="image/*"/>
+    </div>
+    <button id="publishBtn">Publicar</button>
+    <div id="pubStatus" class="muted" style="margin-top:8px"></div>
+  </div>
 
-  <script>
-    const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: true } });
+  <!-- Lista de posts -->
+  <div id="list" class="grid"></div>
+  <p id="empty" class="muted" style="display:none;text-align:center;margin-top:24px">Nenhuma publicação ainda.</p>
+</div>
 
-    async function carregar(){
-      const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session && location.protocol !== 'file:') { location.href = 'login.html'; return; }
-      const userId = sess.session?.user?.id || null;
+<script>
+  // ===== CONFIG: troque pelas suas chaves =====
+  const SUPABASE_URL   = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
+  const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-      // ——— FEED DO USUÁRIO (retorna ARRAY; sem .single())
-      const { data: rows, error } = await supabase
-        .from('map_points')
-        .select('*')
-        .eq('user_id', userId)                 // remova esta linha para feed geral
-        .order('created_at', { ascending: false });
+  // Perfil logado salvo no signup.html
+  const CURRENT_PROFILE_ID = localStorage.getItem('oris_profile_id') || null;
 
-      const list = document.getElementById('feed');
-      if (error) { console.error(error); list.innerHTML = '<p class="muted">Erro ao carregar.</p>'; return; }
-      if (!rows || !rows.length) { list.innerHTML = '<p class="muted">Sem pontos por enquanto.</p>'; return; }
+  async function uploadPostImage(file){
+    const ext   = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path  = post_${Date.now()}.${ext};
+    const up = await sb.storage.from('posts').upload(path, file, { cacheControl:'3600', upsert: false });
+    if(up.error) throw up.error;
+    const pub = sb.storage.from('posts').getPublicUrl(path);
+    return pub.data.publicUrl;
+  }
 
-      list.innerHTML = '';
-      for (const row of rows) {
-        const card = document.createElement('article');
-        card.className = 'card';
-        card.innerHTML =
-          '<h3>' + (row.title ?? '') + '</h3>' +
-          (row.photo_url ? '<img src="'+ row.photo_url +'" alt="Foto do ponto">' : '') +
-          (row.description ? '<p>'+ row.description +'</p>' : '') +
-          '<p class="muted">' +
-            (row.happened_at || '') +
-            (row.lat && row.lng ? ' • ' + Number(row.lat).toFixed(5) + ', ' + Number(row.lng).toFixed(5) : '') +
-          '</p>';
-        list.appendChild(card);
-      }
+  function fmtDate(iso){
+    try{
+      return new Date(iso).toLocaleString('pt-BR', { dateStyle:'short', timeStyle:'short' });
+    }catch{ return iso; }
+  }
+
+  function postCard(p){
+    return `
+      <article class="post">
+        <div class="postHeader">
+          <div class="avatar"><img src="${p.avatar_url || ''}" onerror="this.style.display='none'"></div>
+          <div>
+            <div><strong>${p.display_name || 'Usuário'}</strong></div>
+            <div class="muted">${fmtDate(p.created_at)}</div>
+          </div>
+        </div>
+        <div class="imgBox">
+          <img src="${p.image_url}" alt="">
+        </div>
+        ${p.caption ? <div class="caption">${p.caption}</div> : ''}
+      </article>
+    `;
+  }
+
+  async function loadFeed(){
+    // join simples: posts + profile (avatar/nome)
+    const { data, error } = await sb
+      .from('posts')
+      .select(`
+        id, image_url, caption, created_at,
+        profile_id,
+        profiles:profile_id ( display_name, avatar_url )
+      `)
+      .order('created_at', { ascending: false });
+
+    if(error){ console.error(error); return; }
+
+    const list = document.getElementById('list');
+    const empty = document.getElementById('empty');
+    list.innerHTML = '';
+
+    if(!data || !data.length){
+      empty.style.display = 'block';
+      return;
     }
-    carregar();
-  </script>
+    empty.style.display = 'none';
+
+    // normaliza o join (Supabase retorna objeto aninhado em 'profiles')
+    data.forEach(row=>{
+      const merged = {
+        id: row.id,
+        image_url: row.image_url,
+        caption: row.caption,
+        created_at: row.created_at,
+        display_name: row.profiles?.display_name,
+        avatar_url: row.profiles?.avatar_url
+      };
+      list.insertAdjacentHTML('beforeend', postCard(merged));
+    });
+  }
+
+  async function publish(){
+    const status = document.getElementById('pubStatus');
+    const file   = document.getElementById('imageFile').files[0];
+    const caption= document.getElementById('caption').value.trim();
+
+    if(!CURRENT_PROFILE_ID){
+      status.textContent = 'Crie/entre em uma conta primeiro (signup.html).';
+      return;
+    }
+    if(!file){
+      status.textContent = 'Selecione uma imagem.';
+      return;
+    }
+
+    status.textContent = 'Enviando imagem...';
+    try{
+      const publicUrl = await uploadPostImage(file);
+
+      status.textContent = 'Publicando...';
+      const { error } = await sb.from('posts').insert({
+        profile_id: CURRENT_PROFILE_ID,
+        image_url: publicUrl,
+        caption
+      });
+      if(error) throw error;
+
+      status.textContent = 'Publicado! Atualizando feed...';
+      document.getElementById('imageFile').value = '';
+      document.getElementById('caption').value = '';
+      await loadFeed();
+      status.textContent = 'Pronto ✅';
+    }catch(e){
+      console.error(e);
+      status.textContent = 'Erro ao publicar.';
+    }
+  }
+
+  document.getElementById('publishBtn').addEventListener('click', publish);
+
+  // Realtime: quando houver novos posts, atualizar feed
+  sb.channel('rt-posts')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, loadFeed)
+    .subscribe();
+
+  // Carrega na entrada
+  loadFeed();
+</script>
 </body>
 </html>
+ 
