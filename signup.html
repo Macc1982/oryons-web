@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Oris • Criar conta</title>
 
-  <!-- Mapbox -->
+  <!-- Mapbox GL -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>
+
+  <!-- Mapbox Geocoder -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css" rel="stylesheet" />
   <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
-  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css" />
 
   <!-- Supabase -->
   <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -24,8 +26,9 @@
     label{display:block;margin:12px 0 6px;color:#a9b6d9}
     input,button{width:100%;padding:12px;border-radius:10px;border:1px solid #2b3c70;background:#0b1221;color:#fff}
     button{cursor:pointer;border:1px solid var(--brand)}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .hint{color:var(--muted);font-size:.9rem}
+    #geocoder{margin-bottom:10px}
   </style>
 </head>
 <body>
@@ -36,15 +39,18 @@
 
   <div class="card">
     <div id="geocoder"></div>
-    <p class="hint">Busque sua cidade/bairro ou clique no mapa para escolher sua localização inicial.</p>
+    <p class="hint">Busque sua cidade/bairro ou clique no mapa. As coordenadas preenchidas são automáticas.</p>
 
     <label>Seu nome</label>
     <input id="displayName" placeholder="Ex.: Marcos A. (MACC)"/>
 
+    <label>E-mail</label>
+    <input id="email" type="email" placeholder="voce@exemplo.com"/>
+
     <label>Foto de perfil (quadrada de preferência)</label>
     <input id="avatarFile" type="file" accept="image/*"/>
 
-    <div class="row">
+    <div class="row2">
       <div>
         <label>Latitude</label>
         <input id="lat" readonly>
@@ -61,27 +67,36 @@
 </div>
 
 <script>
-  // ====== COLOQUE SUAS CHAVES AQUI ======
-  const MAPBOX_TOKEN   = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
-  const SUPABASE_URL   = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
-  const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
+  // ===== COLOQUE SUAS CHAVES =====
+  const MAPBOX_TOKEN  = 'INSIRA_SEU_MAPBOX_TOKEN_AQUI';
+  const SUPABASE_URL  = 'https://SEU-PROJ.supabase.co';
+  const SUPABASE_ANON = 'SEU_ANON_KEY_AQUI';
 
-  // ====== MAPA ======
+  // ===== MAPA + GEOCODER =====
   mapboxgl.accessToken = MAPBOX_TOKEN;
   const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/dark-v11',
-    center: [-38.501, -12.971], // Salvador (padrão)
+    center: [-38.501, -12.971], // Salvador padrão
     zoom: 9
   });
 
-  const geocoder = new MapboxGeocoder({ accessToken: MAPBOX_TOKEN, mapboxgl });
+  const geocoder = new MapboxGeocoder({
+    accessToken: MAPBOX_TOKEN,
+    mapboxgl: mapboxgl,
+    marker: false, // usamos nosso próprio marcador
+    language: 'pt-BR',
+    placeholder: 'Buscar endereço, cidade ou ponto de interesse'
+  });
   document.getElementById('geocoder').appendChild(geocoder.onAdd(map));
+
+  const latEl = document.getElementById('lat');
+  const lngEl = document.getElementById('lng');
 
   let pickMarker = null;
   function setPoint(lngLat){
-    lat.value = lngLat.lat.toFixed(6);
-    lng.value = lngLat.lng.toFixed(6);
+    latEl.value = (+lngLat.lat).toFixed(6);
+    lngEl.value = (+lngLat.lng).toFixed(6);
     if(!pickMarker){
       pickMarker = new mapboxgl.Marker({color:'#3857ff'}).setLngLat(lngLat).addTo(map);
     } else {
@@ -89,49 +104,73 @@
     }
   }
 
-  const lat = document.getElementById('lat');
-  const lng = document.getElementById('lng');
   map.on('click', (e)=> setPoint(e.lngLat));
   geocoder.on('result', (e)=>{
-    const [lngV,latV] = e.result.center;
-    setPoint({lng: lngV, lat: latV});
-    map.flyTo({center:[lngV,latV], zoom: 12});
+    const [lng,lat] = e.result.center;
+    setPoint({lng,lat});
+    map.flyTo({center:[lng,lat], zoom: 12});
   });
 
-  // ====== SUPABASE ======
-  const supabase = supabasejs.createClient(SUPABASE_URL, SUPABASE_ANON);
+  // ===== SUPABASE =====
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
   async function uploadAvatar(file){
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `avatar_${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('avatars').upload(path, file, { cacheControl: '3600', upsert: false });
-    if(error) throw error;
-    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-    return data.publicUrl;
+    const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = avatar_${Date.now()}.${ext};
+    const up = await sb.storage.from('avatars').upload(path, file, { cacheControl: '3600', upsert: false });
+    if(up.error) throw up.error;
+    const pub = sb.storage.from('avatars').getPublicUrl(path);
+    return pub.data.publicUrl;
+  }
+
+  function isValidEmail(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  async function emailExists(email){
+    const { data, error } = await sb.from('profiles').select('id').eq('email', email.toLowerCase()).maybeSingle();
+    if(error && error.code !== 'PGRST116') console.warn(error); // PGRST116 = no rows
+    return !!data;
   }
 
   document.getElementById('createBtn').addEventListener('click', async ()=>{
     const status = document.getElementById('status');
-    status.textContent = 'Enviando...';
+    status.textContent = 'Validando...';
 
-    const name = document.getElementById('displayName').value.trim();
-    const latV = parseFloat(lat.value);
-    const lngV = parseFloat(lng.value);
-    const file = document.getElementById('avatarFile').files[0];
+    const name  = document.getElementById('displayName').value.trim();
+    const email = document.getElementById('email').value.trim().toLowerCase();
+    const lat   = parseFloat(latEl.value);
+    const lng   = parseFloat(lngEl.value);
+    const file  = document.getElementById('avatarFile').files[0];
 
-    if(!name || isNaN(latV) || isNaN(lngV) || !file){
-      status.textContent = 'Preencha o nome, escolha o ponto no mapa e selecione a foto.';
+    if(!name){ status.textContent = 'Informe seu nome.'; return; }
+    if(!email || !isValidEmail(email)){ status.textContent = 'Informe um e-mail válido.'; return; }
+    if(isNaN(lat) || isNaN(lng)){ status.textContent = 'Escolha sua localização no mapa ou na busca.'; return; }
+    if(!file){ status.textContent = 'Selecione sua foto de perfil.'; return; }
+
+    // checa duplicidade de email
+    if(await emailExists(email)){
+      status.textContent = 'Este e-mail já está cadastrado.';
       return;
     }
 
     try{
+      status.textContent = 'Enviando avatar...';
       const avatarUrl = await uploadAvatar(file);
-      const { data, error } = await supabase.from('profiles')
-        .insert({ display_name: name, avatar_url: avatarUrl, lat: latV, lng: lngV })
-        .select().single();
-      if(error) throw error;
 
-      localStorage.setItem('oris_profile_id', data.id);
+      status.textContent = 'Criando conta...';
+      const ins = await sb.from('profiles').insert({
+        display_name: name,
+        email: email,
+        avatar_url: avatarUrl,
+        lat, lng
+      }).select().single();
+
+      if(ins.error) throw ins.error;
+
+      // guarda o id local para outras telas (map/feed)
+      localStorage.setItem('oris_profile_id', ins.data.id);
+
       status.textContent = 'Conta criada! Indo para o mapa...';
       setTimeout(()=> window.location.href = 'map.html', 700);
     }catch(err){
@@ -142,6 +181,3 @@
 </script>
 </body>
 </html>
-</html>
-     
- 
