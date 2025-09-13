@@ -116,7 +116,7 @@
 
   async function uploadAvatar(file){
     const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = avatar_${Date.now()}.${ext};
+    const path = `avatar_${Date.now()}.${ext}`;
     const up = await sb.storage.from('avatars').upload(path, file, { cacheControl: '3600', upsert: false });
     if(up.error) throw up.error;
     const pub = sb.storage.from('avatars').getPublicUrl(path);
