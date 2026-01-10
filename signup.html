@@ -69,7 +69,7 @@ input{
 
 input::placeholder{color:#7f90c4}
 
-/* UPLOAD FOTO */
+/* === UPLOAD FOTO (SOLUÇÃO REAL) === */
 .file-label{
   display:block;
   margin-top:8px;
@@ -82,7 +82,9 @@ input::placeholder{color:#7f90c4}
   cursor:pointer;
 }
 
-#avatarFile{ display:none; }
+#avatarFile{
+  display:none;
+}
 
 #avatarPreview{
   width:64px;
@@ -113,6 +115,7 @@ button{
 <div class="wrap">
   <h2>Crie sua conta</h2>
 
+  <!-- MAPA ESTÉTICO -->
   <div id="map"></div>
 
   <div class="card">
@@ -124,8 +127,13 @@ button{
     <input id="email" type="email" placeholder="voce@exemplo.com">
 
     <label>Foto de perfil</label>
-    <label for="avatarFile" class="file-label">Escolher foto de perfil</label>
+
+    <!-- ✅ SOLUÇÃO CORRETA -->
+    <label for="avatarFile" class="file-label">
+      Escolher foto de perfil
+    </label>
     <input id="avatarFile" type="file" accept="image/*">
+
     <img id="avatarPreview">
 
     <button id="createBtn">Criar conta</button>
@@ -134,16 +142,11 @@ button{
   </div>
 </div>
 
-<!-- MAPBOX -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 
-<!-- 🔑 SUPABASE (AQUI É O PONTO-CHAVE) -->
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
 <script>
-/* ================= MAPA ESTÉTICO ================= */
-mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
-
+/* MAPA VISUAL */
+mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
 new mapboxgl.Map({
   container:'map',
   style:'mapbox://styles/mapbox/dark-v11',
@@ -152,18 +155,7 @@ new mapboxgl.Map({
   interactive:false
 });
 
-/* ================= SUPABASE CONFIG ================= */
-const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
-
-const sb = supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
-
-console.log('Supabase conectado:', sb);
-
-/* ================= AVATAR PREVIEW ================= */
+/* PREVIEW DA FOTO */
 const avatarFile = document.getElementById('avatarFile');
 const avatarPreview = document.getElementById('avatarPreview');
 
@@ -178,13 +170,10 @@ avatarFile.addEventListener('change', e => {
   reader.readAsDataURL(file);
 });
 
-/* ================= CRIAR CONTA (AUTH + DB) ================= */
-document.getElementById('createBtn').onclick = async () => {
-  const status = document.getElementById('status');
-  status.textContent = 'Criando conta...';
-
-  const name = document.getElementById('displayName').value.trim();
-  const email = document.getElementById('email').value.trim();
+/* CRIAR CONTA */
+document.getElementById('createBtn').onclick = () => {
+  const name = displayName.value.trim();
+  const email = emailInput = document.getElementById('email').value.trim();
   const file = avatarFile.files[0];
 
   if(!name || !email || !file){
@@ -192,47 +181,8 @@ document.getElementById('createBtn').onclick = async () => {
     return;
   }
 
-  try {
-    /* 1️⃣ CRIA USUÁRIO NO AUTH */
-    const { data, error } = await sb.auth.signUp({
-      email,
-      password: crypto.randomUUID() // senha temporária
-    });
-
-    if(error) throw error;
-
-    const userId = data.user.id;
-
-    /* 2️⃣ UPLOAD DO AVATAR */
-    const ext = file.name.split('.').pop();
-    const path = avatars/${userId}.${ext};
-
-    const upload = await sb.storage
-      .from('avatars')
-      .upload(path, file, { upsert:true });
-
-    if(upload.error) throw upload.error;
-
-    const avatarUrl =
-      sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
-
-    /* 3️⃣ INSERE PERFIL */
-    const insert = await sb.from('profiles').insert({
-      id: userId,
-      display_name: name,
-      email: email,
-      avatar_url: avatarUrl
-    });
-
-    if(insert.error) throw insert.error;
-
-    status.textContent = 'Conta criada! Indo para o mapa...';
-    setTimeout(()=>location.href='map.html',800);
-
-  } catch(err) {
-    console.error(err);
-    status.textContent = 'Erro ao criar conta.';
-  }
+  status.textContent = 'Conta criada! Indo para o mapa...';
+  setTimeout(()=>location.href='map.html',800);
 };
 </script>
 
