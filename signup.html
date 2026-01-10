@@ -7,8 +7,6 @@
 
 <!-- Mapbox -->
 <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-
-<!-- Geocoder -->
 <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css" rel="stylesheet">
 
 <style>
@@ -28,30 +26,34 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto;
 }
 .wrap{
-  max-width:720px;
+  max-width:760px;
   margin:16px auto;
   padding:16px;
 }
 h2{margin-bottom:12px}
 #map{
   width:100%;
-  height:38vh; /* 🔑 CRÍTICO PARA MOBILE */
+  height:38vh;
   max-height:360px;
-  border-radius:12px;
+  border-radius:14px;
   border:1px solid var(--stroke);
   margin-bottom:16px;
+  position:relative;
+  z-index:1;
 }
 .card{
   background:var(--card);
   border:1px solid var(--stroke);
-  border-radius:14px;
+  border-radius:16px;
   padding:16px;
+  position:relative;
+  z-index:20;
 }
 label{display:block;margin:14px 0 6px;color:#a9b6d9}
 input,button{
   width:100%;
   padding:12px;
-  border-radius:10px;
+  border-radius:12px;
   border:1px solid #2b3c70;
   background:#0b1221;
   color:#fff;
@@ -71,7 +73,7 @@ button{
   max-width:100%!important;
   background:#0b1221!important;
   border:1px solid #2b3c70!important;
-  border-radius:10px!important;
+  border-radius:12px!important;
   box-shadow:none!important;
 }
 .mapboxgl-ctrl-geocoder input{
@@ -87,15 +89,17 @@ button{
   background:#0b1221;
   border:1px dashed #2b3c70;
   color:#8aa0d6;
+  position:relative;
+  z-index:30;
 }
 #avatarPreview{
   width:96px;
   height:96px;
-  border-radius:14px;
+  border-radius:50%;
   display:none;
-  margin-top:10px;
+  margin-top:12px;
   object-fit:cover;
-  border:1px solid var(--stroke);
+  border:3px solid var(--brand);
 }
 </style>
 </head>
@@ -108,13 +112,12 @@ button{
   <div id="map"></div>
 
   <div class="card">
-
     <label>Buscar cidade ou bairro</label>
     <div id="geocoder"></div>
-    <p class="hint">Digite e escolha um local.</p>
+    <p class="hint">Selecione um local. O mapa será ajustado automaticamente.</p>
 
-    <label>Seu nome</label>
-    <input id="displayName" placeholder="Ex.: Marcos A. (MACC)">
+    <label>Seu nickname</label>
+    <input id="displayName" placeholder="Ex.: MACC">
 
     <label>E-mail</label>
     <input id="email" type="email" placeholder="voce@exemplo.com">
@@ -126,62 +129,135 @@ button{
 
     <button id="createBtn">Criar conta</button>
     <p id="status" class="hint"></p>
-
   </div>
 </div>
 
-<!-- JS NO FINAL (NUNCA INLINE NO MEIO) -->
+<!-- SCRIPTS -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
 <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 
 <script>
-/* CONFIG */
+/* ===== CONFIG ===== */
 const MAPBOX_TOKEN = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
 const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
 
-/* MAPA */
+/* ===== MAPA ===== */
 mapboxgl.accessToken = MAPBOX_TOKEN;
 const map = new mapboxgl.Map({
   container:'map',
   style:'mapbox://styles/mapbox/dark-v11',
-  center:[-38.501,-12.971],
-  zoom:9
+  center:[-47.9,-15.8],
+  zoom:4
 });
 
-let lat=null,lng=null,marker=null;
-function setPoint(a,b){
-  lng=a; lat=b;
-  if(!marker){
-    marker=new mapboxgl.Marker({color:'#245bff'}).setLngLat([a,b]).addTo(map);
-  }else marker.setLngLat([a,b]);
+/* desativa interações durante cadastro */
+map.scrollZoom.disable();
+map.dragPan.disable();
+map.touchZoomRotate.disable();
+
+let selectedLat=null, selectedLng=null, marker=null, avatarTemp=null;
+
+function setPoint(lng,lat,avatar){
+  selectedLng=lng;
+  selectedLat=lat;
+  if(marker) marker.remove();
+
+  const el=document.createElement('div');
+  el.style.width='56px';
+  el.style.height='56px';
+  el.style.borderRadius='50%';
+  el.style.border='3px solid #245bff';
+  el.style.background='#0b1221';
+  el.style.backgroundSize='cover';
+  el.style.backgroundPosition='center';
+  if(avatar) el.style.backgroundImage=`url(${avatar})`;
+
+  marker=new mapboxgl.Marker(el).setLngLat([lng,lat]).addTo(map);
 }
 
+/* ===== GEOCODER ===== */
 const geocoder=new MapboxGeocoder({
   accessToken:MAPBOX_TOKEN,
   mapboxgl,
   marker:false,
-  language:'pt-BR'
+  language:'pt-BR',
+  placeholder:'Cidade, bairro, estado ou país'
 });
 document.getElementById('geocoder').appendChild(geocoder.onAdd(map));
-geocoder.on('result',e=>{
-  setPoint(e.result.center[0],e.result.center[1]);
-  map.flyTo({center:e.result.center,zoom:12});
-});
-map.on('click',e=>setPoint(e.lngLat.lng,e.lngLat.lat));
 
-/* AVATAR */
+geocoder.on('result',e=>{
+  const [lng,lat]=e.result.center;
+  setPoint(lng,lat,avatarTemp);
+  map.flyTo({center:[lng,lat],zoom:10});
+});
+
+/* ===== AVATAR ===== */
 avatarBtn.onclick=()=>avatarFile.click();
 avatarFile.onchange=e=>{
-  const f=e.target.files[0]; if(!f)return;
-  const r=new FileReader();
-  r.onload=()=>{avatarPreview.src=r.result;avatarPreview.style.display='block';};
-  r.readAsDataURL(f);
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    avatarTemp=reader.result;
+    avatarPreview.src=avatarTemp;
+    avatarPreview.style.display='block';
+    if(selectedLat && selectedLng){
+      setPoint(selectedLng,selectedLat,avatarTemp);
+    }
+  };
+  reader.readAsDataURL(file);
 };
 
-/* SUPABASE */
+/* ===== SUPABASE ===== */
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+
+async function uploadAvatar(file){
+  const ext=file.name.split('.').pop();
+  const path=`avatar_${Date.now()}.${ext}`;
+  const up=await sb.storage.from('avatars').upload(path,file);
+  if(up.error) throw up.error;
+  return sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+}
+
+createBtn.onclick=async()=>{
+  const status=document.getElementById('status');
+  status.textContent='Validando...';
+
+  const name=displayName.value.trim();
+  const email=document.getElementById('email').value.trim();
+  const file=avatarFile.files[0];
+
+  if(!name || !email || !file || !selectedLat){
+    status.textContent='Preencha todos os campos.';
+    return;
+  }
+
+  try{
+    status.textContent='Criando perfil...';
+    const avatarUrl=await uploadAvatar(file);
+
+    const ins=await sb.from('profiles').insert({
+      display_name:name,
+      email,
+      avatar_url:avatarUrl,
+      lat:selectedLat,
+      lng:selectedLng
+    }).select().single();
+
+    if(ins.error) throw ins.error;
+
+    localStorage.setItem('oryons_profile_id',ins.data.id);
+
+    // 🔥 REDIRECIONA PARA MAPA COMPLETO
+    window.location.href='map.html';
+
+  }catch(err){
+    console.error(err);
+    status.textContent='Erro ao criar conta.';
+  }
+};
 </script>
 
 </body>
