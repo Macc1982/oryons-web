@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Oryons • Criar conta</title>
 
-<!-- Mapbox -->
-<link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-<link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css" rel="stylesheet">
+<!-- MAPBOX CSS (OBRIGATÓRIO) -->
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css">
+<link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.css">
 
 <style>
 :root{
@@ -76,13 +76,14 @@ button{
 }
 
 /* =========================================
-   🔥 FIX DEFINITIVO DO GEOCODER (TODOS OS BROWSERS)
+   🔥 FIX DEFINITIVO DO GEOCODER
 ========================================= */
 
 #geocoder{
   width:100%;
-  display:block;
   min-height:56px;
+  display:block;
+  margin-bottom:8px;
 }
 
 .mapboxgl-ctrl-geocoder{
@@ -99,6 +100,7 @@ button{
 
 .mapboxgl-ctrl-geocoder input{
   height:56px !important;
+  width:100% !important;
   color:#fff !important;
   font-size:16px !important;
 }
@@ -148,7 +150,7 @@ button{
   </div>
 </div>
 
-<!-- JS -->
+<!-- MAPBOX JS (ORDEM IMPORTA) -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
 
@@ -170,24 +172,29 @@ function setPoint(lngP,latP){
   marker=new mapboxgl.Marker().setLngLat([lng,lat]).addTo(map);
 }
 
-/* 🔥 INICIALIZA GEOCODER DEPOIS DO MAPA */
+/* 🔥 CRIA O GEOCODER APÓS MAPA + DOM ESTÁVEL */
 map.on('load',()=>{
-  const geocoder = new MapboxGeocoder({
-    accessToken: mapboxgl.accessToken,
-    mapboxgl,
-    marker:false,
-    language:'pt-BR',
-    placeholder:'Cidade, bairro, estado ou país'
-  });
+  setTimeout(()=>{
 
-  document.getElementById('geocoder')
-    .appendChild(geocoder.onAdd(map));
+    const geocoder = new MapboxGeocoder({
+      accessToken: mapboxgl.accessToken,
+      mapboxgl,
+      marker:false,
+      language:'pt-BR',
+      placeholder:'Cidade, bairro, estado ou país'
+    });
 
-  geocoder.on('result',e=>{
-    const [lngP,latP]=e.result.center;
-    setPoint(lngP,latP);
-    map.flyTo({center:[lngP,latP],zoom:12});
-  });
+    const geoContainer = document.getElementById('geocoder');
+    geoContainer.innerHTML = '';
+    geoContainer.appendChild(geocoder.onAdd(map));
+
+    geocoder.on('result',e=>{
+      const [lngP,latP]=e.result.center;
+      setPoint(lngP,latP);
+      map.flyTo({center:[lngP,latP],zoom:12});
+    });
+
+  }, 150); // 🔥 força repaint
 });
 
 /* AVATAR */
