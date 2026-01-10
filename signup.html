@@ -40,7 +40,7 @@ body{
   border-radius:16px;
   border:1px solid var(--stroke);
   margin-bottom:20px;
-  pointer-events:none; /* 🔥 impede qualquer interação */
+  pointer-events:none;
   opacity:0.85;
 }
 
@@ -58,7 +58,7 @@ label{
   font-size:15px;
 }
 
-input,button{
+input{
   width:100%;
   padding:14px;
   border-radius:12px;
@@ -70,19 +70,21 @@ input,button{
 
 input::placeholder{color:#7f90c4}
 
-button{
-  background:linear-gradient(180deg,#245bff,#1f4fe0);
-  border:none;
-  font-weight:600;
-  margin-top:18px;
+/* BOTÃO DE UPLOAD (CORRETO) */
+#avatarBtn{
+  display:block;
+  margin-top:8px;
+  padding:14px;
+  border-radius:12px;
+  border:1px dashed #2b3c70;
+  background:#0b1221;
+  color:#8aa0d6;
+  text-align:center;
+  cursor:pointer;
 }
 
-/* FOTO */
-#avatarBtn{
-  margin-top:8px;
-  background:#0b1221;
-  border:1px dashed #2b3c70;
-  color:#8aa0d6;
+#avatarFile{
+  display:none;
 }
 
 #avatarPreview{
@@ -94,6 +96,18 @@ button{
   border:3px solid var(--brand);
   object-fit:cover;
 }
+
+button{
+  width:100%;
+  padding:14px;
+  margin-top:18px;
+  border-radius:12px;
+  border:none;
+  background:linear-gradient(180deg,#245bff,#1f4fe0);
+  color:#fff;
+  font-size:16px;
+  font-weight:600;
+}
 </style>
 </head>
 
@@ -102,7 +116,7 @@ button{
 <div class="wrap">
   <h2>Crie sua conta</h2>
 
-  <!-- MAPA VISUAL -->
+  <!-- MAPA ESTÉTICO -->
   <div id="map"></div>
 
   <!-- FORMULÁRIO -->
@@ -114,9 +128,21 @@ button{
     <label>E-mail</label>
     <input id="email" type="email" placeholder="voce@exemplo.com">
 
+    <label>Senha</label>
+    <input
+      id="password"
+      type="password"
+      placeholder="Crie uma senha (mín. 6 caracteres)"
+      minlength="6"
+    >
+
     <label>Foto de perfil</label>
-    <input id="avatarFile" type="file" accept="image/*" hidden>
-    <button type="button" id="avatarBtn">Escolher foto de perfil</button>
+
+    <input id="avatarFile" type="file" accept="image/*">
+    <label for="avatarFile" id="avatarBtn">
+      Escolher foto de perfil
+    </label>
+
     <img id="avatarPreview">
 
     <button id="createBtn">Criar conta</button>
@@ -125,52 +151,54 @@ button{
   </div>
 </div>
 
-<!-- MAPBOX JS (SÓ PARA RENDERIZAR O MAPA) -->
+<!-- MAPBOX JS -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 
 <script>
-/* ===== MAPA SOMENTE ESTÉTICO ===== */
+/* ===== MAPA SOMENTE VISUAL ===== */
 mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
 
 new mapboxgl.Map({
   container:'map',
   style:'mapbox://styles/mapbox/dark-v11',
-  center:[-38.5,-12.97], // Salvador
+  center:[-38.5,-12.97],
   zoom:8,
   interactive:false
 });
 
-/* ===== FOTO DE PERFIL ===== */
-const avatarBtn = document.getElementById('avatarBtn');
+/* ===== PREVIEW DA FOTO ===== */
 const avatarFile = document.getElementById('avatarFile');
 const avatarPreview = document.getElementById('avatarPreview');
 
-avatarBtn.onclick = () => avatarFile.click();
-
-avatarFile.onchange = e => {
+avatarFile.addEventListener('change', e => {
   const file = e.target.files[0];
   if(!file) return;
+
   const reader = new FileReader();
   reader.onload = () => {
     avatarPreview.src = reader.result;
     avatarPreview.style.display = 'block';
   };
   reader.readAsDataURL(file);
-};
+});
 
-/* ===== CRIAR CONTA (SIMPLIFICADO) ===== */
+/* ===== CRIAR CONTA (LOCAL / MOCK) ===== */
 document.getElementById('createBtn').onclick = () => {
   const name = displayName.value.trim();
   const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
   const file = avatarFile.files[0];
+  const status = document.getElementById('status');
 
-  if(!name || !email || !file){
+  if(!name || !email || !password || !file){
     status.textContent = 'Preencha todos os campos.';
     return;
   }
 
-  // aqui você pode integrar com Supabase depois
-  localStorage.setItem('oryons_signup_ok','1');
+  if(password.length < 6){
+    status.textContent = 'A senha deve ter pelo menos 6 caracteres.';
+    return;
+  }
 
   status.textContent = 'Conta criada! Indo para o mapa...';
   setTimeout(()=>location.href='map.html',800);
