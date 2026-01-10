@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Oris • Criar conta</title>
+  <title>Oryons • Criar conta</title>
 
   <!-- Mapbox GL -->
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
@@ -17,49 +17,92 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 
   <style>
-    :root{--brand:#3857ff;--bg:#0b1221;--card:#0f1830;--stroke:#1e2b55;--txt:#fff;--muted:#8aa0d6}
+    :root{
+      --brand:#245bff;
+      --bg:#0b1221;
+      --card:#0f1830;
+      --stroke:#1e2b55;
+      --txt:#fff;
+      --muted:#8aa0d6;
+    }
     *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,Arial}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--txt);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto;
+    }
     .wrap{max-width:920px;margin:24px auto;padding:16px}
-    #map{height:380px;border-radius:12px;overflow:hidden;border:1px solid var(--stroke)}
-    .card{background:var(--card);border:1px solid var(--stroke);border-radius:12px;padding:16px;margin-top:16px}
-    label{display:block;margin:12px 0 6px;color:#a9b6d9}
-    input,button{width:100%;padding:12px;border-radius:10px;border:1px solid #2b3c70;background:#0b1221;color:#fff}
-    button{cursor:pointer;border:1px solid var(--brand)}
-    .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .hint{color:var(--muted);font-size:.9rem}
-    #geocoder{margin-bottom:10px}
+    h2{margin-bottom:12px}
+    #map{
+      height:360px;
+      border-radius:12px;
+      overflow:hidden;
+      border:1px solid var(--stroke);
+      margin-bottom:16px;
+    }
+    .card{
+      background:var(--card);
+      border:1px solid var(--stroke);
+      border-radius:12px;
+      padding:16px;
+    }
+    label{display:block;margin:14px 0 6px;color:#a9b6d9}
+    input,button{
+      width:100%;
+      padding:12px;
+      border-radius:10px;
+      border:1px solid #2b3c70;
+      background:#0b1221;
+      color:#fff;
+      font-size:16px;
+    }
+    button{
+      cursor:pointer;
+      margin-top:16px;
+      background:linear-gradient(180deg,#245bff,#1f4fe0);
+      border:none;
+      font-weight:600;
+    }
+    .hint{color:var(--muted);font-size:.9rem;margin-top:6px}
+    #geocoder{margin-bottom:6px}
+    #avatarPreview{
+      width:96px;
+      height:96px;
+      border-radius:14px;
+      object-fit:cover;
+      display:none;
+      margin-top:10px;
+      border:1px solid var(--stroke);
+    }
   </style>
 </head>
 <body>
+
 <div class="wrap">
   <h2>Crie sua conta</h2>
 
   <div id="map"></div>
 
   <div class="card">
-    <div id="geocoder"></div>
-    <p class="hint">Busque sua cidade/bairro ou clique no mapa. As coordenadas preenchidas são automáticas.</p>
 
+    <!-- BUSCA DE LOCAL -->
+    <label>Buscar cidade ou bairro</label>
+    <div id="geocoder"></div>
+    <p class="hint">Digite e escolha um local. A posição será definida automaticamente.</p>
+
+    <!-- NOME -->
     <label>Seu nome</label>
     <input id="displayName" placeholder="Ex.: Marcos A. (MACC)"/>
 
+    <!-- EMAIL -->
     <label>E-mail</label>
     <input id="email" type="email" placeholder="voce@exemplo.com"/>
 
-    <label>Foto de perfil (quadrada de preferência)</label>
+    <!-- AVATAR -->
+    <label>Foto de perfil</label>
     <input id="avatarFile" type="file" accept="image/*"/>
-
-    <div class="row2">
-      <div>
-        <label>Latitude</label>
-        <input id="lat" readonly>
-      </div>
-      <div>
-        <label>Longitude</label>
-        <input id="lng" readonly>
-      </div>
-    </div>
+    <img id="avatarPreview"/>
 
     <button id="createBtn">Criar conta</button>
     <p id="status" class="hint"></p>
@@ -67,117 +110,119 @@
 </div>
 
 <script>
-  // ===== COLOQUE SUAS CHAVES =====
+  /* ===== CHAVES ===== */
   const MAPBOX_TOKEN  = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21lbTFpN2g3MG1zbzJrb2w2a3llcG9tNyJ9.5VFSnR0E-iAJusaKr7ntAg';
   const SUPABASE_URL  = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
 
-  // ===== MAPA + GEOCODER =====
+  /* ===== MAPA ===== */
   mapboxgl.accessToken = MAPBOX_TOKEN;
   const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/mapbox/dark-v11',
-    center: [-38.501, -12.971], // Salvador padrão
+    center: [-38.501, -12.971],
     zoom: 9
   });
+
+  let selectedLat = null;
+  let selectedLng = null;
+  let marker = null;
+
+  function setPoint(lng, lat){
+    selectedLng = lng;
+    selectedLat = lat;
+    if(!marker){
+      marker = new mapboxgl.Marker({color:'#245bff'}).setLngLat([lng,lat]).addTo(map);
+    }else{
+      marker.setLngLat([lng,lat]);
+    }
+  }
 
   const geocoder = new MapboxGeocoder({
     accessToken: MAPBOX_TOKEN,
     mapboxgl: mapboxgl,
-    marker: false, // usamos nosso próprio marcador
+    marker: false,
     language: 'pt-BR',
-    placeholder: 'Buscar endereço, cidade ou ponto de interesse'
+    placeholder: 'Cidade, bairro ou endereço'
   });
   document.getElementById('geocoder').appendChild(geocoder.onAdd(map));
 
-  const latEl = document.getElementById('lat');
-  const lngEl = document.getElementById('lng');
-
-  let pickMarker = null;
-  function setPoint(lngLat){
-    latEl.value = (+lngLat.lat).toFixed(6);
-    lngEl.value = (+lngLat.lng).toFixed(6);
-    if(!pickMarker){
-      pickMarker = new mapboxgl.Marker({color:'#3857ff'}).setLngLat(lngLat).addTo(map);
-    } else {
-      pickMarker.setLngLat(lngLat);
-    }
-  }
-
-  map.on('click', (e)=> setPoint(e.lngLat));
   geocoder.on('result', (e)=>{
     const [lng,lat] = e.result.center;
-    setPoint({lng,lat});
+    setPoint(lng,lat);
     map.flyTo({center:[lng,lat], zoom: 12});
   });
 
-  // ===== SUPABASE =====
+  map.on('click', (e)=>{
+    setPoint(e.lngLat.lng, e.lngLat.lat);
+  });
+
+  /* ===== AVATAR PREVIEW ===== */
+  document.getElementById('avatarFile').addEventListener('change', e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = document.getElementById('avatarPreview');
+      img.src = reader.result;
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  /* ===== SUPABASE ===== */
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
   async function uploadAvatar(file){
-    const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `avatar_${Date.now()}.${ext}`;
-    const up = await sb.storage.from('avatars').upload(path, file, { cacheControl: '3600', upsert: false });
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = avatar_${Date.now()}.${ext};
+    const up = await sb.storage.from('avatars').upload(path, file);
     if(up.error) throw up.error;
-    const pub = sb.storage.from('avatars').getPublicUrl(path);
-    return pub.data.publicUrl;
+    return sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
   }
 
   function isValidEmail(email){
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   }
 
-  async function emailExists(email){
-    const { data, error } = await sb.from('profiles').select('id').eq('email', email.toLowerCase()).maybeSingle();
-    if(error && error.code !== 'PGRST116') console.warn(error); // PGRST116 = no rows
-    return !!data;
-  }
-
   document.getElementById('createBtn').addEventListener('click', async ()=>{
     const status = document.getElementById('status');
     status.textContent = 'Validando...';
 
-    const name  = document.getElementById('displayName').value.trim();
+    const name  = displayName.value.trim();
     const email = document.getElementById('email').value.trim().toLowerCase();
-    const lat   = parseFloat(latEl.value);
-    const lng   = parseFloat(lngEl.value);
     const file  = document.getElementById('avatarFile').files[0];
 
-    if(!name){ status.textContent = 'Informe seu nome.'; return; }
-    if(!email || !isValidEmail(email)){ status.textContent = 'Informe um e-mail válido.'; return; }
-    if(isNaN(lat) || isNaN(lng)){ status.textContent = 'Escolha sua localização no mapa ou na busca.'; return; }
-    if(!file){ status.textContent = 'Selecione sua foto de perfil.'; return; }
-
-    // checa duplicidade de email
-    if(await emailExists(email)){
-      status.textContent = 'Este e-mail já está cadastrado.';
-      return;
-    }
+    if(!name){ status.textContent='Informe seu nome.'; return; }
+    if(!email || !isValidEmail(email)){ status.textContent='Informe um e-mail válido.'; return; }
+    if(!selectedLat || !selectedLng){ status.textContent='Escolha sua localização.'; return; }
+    if(!file){ status.textContent='Selecione sua foto de perfil.'; return; }
 
     try{
-      status.textContent = 'Enviando avatar...';
+      status.textContent='Enviando avatar...';
       const avatarUrl = await uploadAvatar(file);
 
-      status.textContent = 'Criando conta...';
+      status.textContent='Criando conta...';
       const ins = await sb.from('profiles').insert({
-        display_name: name,
-        email: email,
-        avatar_url: avatarUrl,
-        lat, lng
+        display_name:name,
+        email,
+        avatar_url:avatarUrl,
+        lat:selectedLat,
+        lng:selectedLng
       }).select().single();
 
       if(ins.error) throw ins.error;
 
-      // guarda o id local para outras telas (map/feed)
-      localStorage.setItem('oris_profile_id', ins.data.id);
+      localStorage.setItem('oryons_profile_id', ins.data.id);
+      status.textContent='Conta criada! Indo para o mapa...';
+      setTimeout(()=>location.href='map.html',700);
 
-      status.textContent = 'Conta criada! Indo para o mapa...';
-      setTimeout(()=> window.location.href = 'map.html', 700);
     }catch(err){
       console.error(err);
-      status.textContent = 'Erro ao criar conta.';
+      status.textContent='Erro ao criar conta.';
     }
   });
 </script>
+
 </body>
 </html>
