@@ -15,7 +15,7 @@
   --card:#0f1830;
   --stroke:#1e2b55;
   --brand:#245bff;
-  --txt:#ffffff;
+  --txt:#fff;
   --muted:#8aa0d6;
 }
 
@@ -29,7 +29,7 @@ body{
 }
 
 .container{
-  max-width:720px;
+  max-width:760px;
   margin:24px auto;
   padding:16px;
 }
@@ -38,15 +38,16 @@ h2{margin-bottom:12px}
 
 #map{
   height:320px;
-  border-radius:12px;
+  border-radius:14px;
   border:1px solid var(--stroke);
   margin-bottom:16px;
 }
 
+/* CARD */
 .card{
   background:var(--card);
   border:1px solid var(--stroke);
-  border-radius:12px;
+  border-radius:14px;
   padding:16px;
 }
 
@@ -68,45 +69,45 @@ input,button{
 
 button{
   margin-top:16px;
-  background:#245bff;
+  background:linear-gradient(180deg,#245bff,#1f4fe0);
   border:none;
   font-weight:600;
   cursor:pointer;
 }
 
-/* =====================================================
-   FIX SAFARI iOS – GEOCODER NÃO APARECE / NÃO CLICA
-   ===================================================== */
+/* =========================================
+   🔥 FIX DEFINITIVO DO GEOCODER (TODOS OS BROWSERS)
+========================================= */
 
 #geocoder{
-  min-height:48px;
-  position:relative;
-  z-index:9999;
+  width:100%;
+  display:block;
+  min-height:56px;
 }
 
-#geocoder .mapboxgl-ctrl-geocoder{
-  width:100%!important;
-  max-width:100%!important;
-  min-height:48px;
-  background:#0b1221!important;
-  border:1px solid #2b3c70!important;
-  border-radius:10px!important;
-  box-shadow:none!important;
-  z-index:9999!important;
+.mapboxgl-ctrl-geocoder{
+  width:100% !important;
+  max-width:100% !important;
+  min-height:56px !important;
+  display:flex !important;
+  align-items:center;
+  background:#0b1221 !important;
+  border:1px solid #2b3c70 !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
 }
 
-#geocoder .mapboxgl-ctrl-geocoder input{
-  height:48px !important;
+.mapboxgl-ctrl-geocoder input{
+  height:56px !important;
   color:#fff !important;
+  font-size:16px !important;
 }
 
-#geocoder .mapboxgl-ctrl-geocoder input::placeholder{
+.mapboxgl-ctrl-geocoder input::placeholder{
   color:#8aa0d6 !important;
 }
 
-/* =====================================================
-   AVATAR
-   ===================================================== */
+/* ========================================= */
 
 #avatarPreview{
   width:60px;
@@ -152,7 +153,6 @@ button{
 <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.1/mapbox-gl-geocoder.min.js"></script>
 
 <script>
-/* ========== MAPBOX ========== */
 mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
 
 const map = new mapboxgl.Map({
@@ -162,59 +162,60 @@ const map = new mapboxgl.Map({
   zoom:9
 });
 
-let lat=null, lng=null, marker=null;
+let lat=null,lng=null,marker=null;
 
-function setPoint(lngP, latP){
-  lng = lngP;
-  lat = latP;
+function setPoint(lngP,latP){
+  lng=lngP; lat=latP;
   if(marker) marker.remove();
-  marker = new mapboxgl.Marker().setLngLat([lng,lat]).addTo(map);
+  marker=new mapboxgl.Marker().setLngLat([lng,lat]).addTo(map);
 }
 
-/* ========== GEOCODER ========== */
-const geocoder = new MapboxGeocoder({
-  accessToken: mapboxgl.accessToken,
-  mapboxgl,
-  marker:false,
-  language:'pt-BR',
-  placeholder:'Cidade, bairro, estado ou país'
+/* 🔥 INICIALIZA GEOCODER DEPOIS DO MAPA */
+map.on('load',()=>{
+  const geocoder = new MapboxGeocoder({
+    accessToken: mapboxgl.accessToken,
+    mapboxgl,
+    marker:false,
+    language:'pt-BR',
+    placeholder:'Cidade, bairro, estado ou país'
+  });
+
+  document.getElementById('geocoder')
+    .appendChild(geocoder.onAdd(map));
+
+  geocoder.on('result',e=>{
+    const [lngP,latP]=e.result.center;
+    setPoint(lngP,latP);
+    map.flyTo({center:[lngP,latP],zoom:12});
+  });
 });
 
-document.getElementById('geocoder')
-  .appendChild(geocoder.onAdd(map));
+/* AVATAR */
+const avatar=document.getElementById('avatar');
+const preview=document.getElementById('avatarPreview');
 
-geocoder.on('result', e=>{
-  const [lngP, latP] = e.result.center;
-  setPoint(lngP, latP);
-  map.flyTo({ center:[lngP,latP], zoom:12 });
-});
-
-/* ========== AVATAR ========== */
-const avatarInput = document.getElementById('avatar');
-const avatarPreview = document.getElementById('avatarPreview');
-
-avatarInput.onchange = e=>{
-  const file = e.target.files[0];
+avatar.onchange=e=>{
+  const file=e.target.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = ()=>{
-    avatarPreview.src = reader.result;
-    avatarPreview.style.display = 'block';
+  const reader=new FileReader();
+  reader.onload=()=>{
+    preview.src=reader.result;
+    preview.style.display='block';
   };
   reader.readAsDataURL(file);
 };
 
-/* ========== FINALIZAR ========== */
-document.getElementById('create').onclick = ()=>{
-  if(!lat || !lng){
+/* FINAL */
+document.getElementById('create').onclick=()=>{
+  if(!lat||!lng){
     alert('Selecione uma cidade ou bairro');
     return;
   }
-  if(!avatarInput.files[0]){
+  if(!avatar.files[0]){
     alert('Escolha uma foto de perfil');
     return;
   }
-  location.href = 'map.html';
+  location.href='map.html';
 };
 </script>
 
