@@ -128,6 +128,26 @@
       text-decoration: underline;
     }
   </style>
+  @media (max-width: 480px) {
+  .login-container {
+    width: 90%;
+    padding: 28px 22px;
+    border-radius: 14px;
+  }
+
+  .login-container h1 {
+    font-size: 22px;
+  }
+
+  .login-container p {
+    font-size: 12px;
+  }
+
+  .login-container button {
+    font-size: 14px;
+    padding: 12px;
+  }
+}
 </head>
 
 <body>
@@ -171,8 +191,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const supabase = supabaseJs.createClient(
-      'SUA_SUPABASE_URL',
-      'SUA_SUPABASE_ANON_KEY'
+      'https://sdwhuonmixijcnhhtxdj.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY'
     );
 
     async function login() {
