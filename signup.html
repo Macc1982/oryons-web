@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Oryons • Criar conta</title>
 
+<!-- MAPBOX (APENAS VISUAL) -->
 <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
 
 <style>
@@ -32,6 +33,7 @@ body{
   padding:16px;
 }
 
+/* MAPA SOMENTE ESTÉTICO */
 #map{
   height:38vh;
   max-height:360px;
@@ -68,7 +70,7 @@ input{
 
 input::placeholder{color:#7f90c4}
 
-/* BOTÃO */
+/* BOTÃO DE UPLOAD (CORRETO) */
 #avatarBtn{
   display:block;
   margin-top:8px;
@@ -81,13 +83,8 @@ input::placeholder{color:#7f90c4}
   cursor:pointer;
 }
 
-/* ✅ FIX DEFINITIVO */
 #avatarFile{
-  position:absolute;
-  opacity:0;
-  width:1px;
-  height:1px;
-  overflow:hidden;
+  display:none;
 }
 
 #avatarPreview{
@@ -119,41 +116,48 @@ button{
 <div class="wrap">
   <h2>Crie sua conta</h2>
 
+  <!-- MAPA ESTÉTICO -->
   <div id="map"></div>
 
+  <!-- FORMULÁRIO -->
   <div class="card">
 
     <label>Seu nome</label>
-    <input id="displayName">
+    <input id="displayName" placeholder="Ex.: Marcos A. (MACC)">
 
     <label>E-mail</label>
-    <input id="email" type="email">
+    <input id="email" type="email" placeholder="voce@exemplo.com">
 
     <label>Senha</label>
-    <input id="password" type="password" minlength="6">
+    <input
+      id="password"
+      type="password"
+      placeholder="Crie uma senha (mín. 6 caracteres)"
+      minlength="6"
+    >
 
     <label>Foto de perfil</label>
+
     <input id="avatarFile" type="file" accept="image/*">
-    <label for="avatarFile" id="avatarBtn">Escolher foto de perfil</label>
+    <label for="avatarFile" id="avatarBtn">
+      Escolher foto de perfil
+    </label>
 
     <img id="avatarPreview">
 
     <button id="createBtn">Criar conta</button>
-    <p id="status"></p>
+    <p id="status" style="margin-top:10px;color:#8aa0d6"></p>
 
   </div>
 </div>
 
+<!-- MAPBOX JS -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
 <script>
-const supabase = window.supabase.createClient(
-  'https://sdwhuonmixijcnhhtxdj.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY'
-);
+/* ===== MAPA SOMENTE VISUAL ===== */
+mapboxgl.accessToken = 'SUA_MAPBOX_TOKEN';
 
-mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
 new mapboxgl.Map({
   container:'map',
   style:'mapbox://styles/mapbox/dark-v11',
@@ -162,6 +166,7 @@ new mapboxgl.Map({
   interactive:false
 });
 
+/* ===== PREVIEW DA FOTO ===== */
 const avatarFile = document.getElementById('avatarFile');
 const avatarPreview = document.getElementById('avatarPreview');
 
@@ -176,6 +181,28 @@ avatarFile.addEventListener('change', e => {
   };
   reader.readAsDataURL(file);
 });
+
+/* ===== CRIAR CONTA (LOCAL / MOCK) ===== */
+document.getElementById('createBtn').onclick = () => {
+  const name = displayName.value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const file = avatarFile.files[0];
+  const status = document.getElementById('status');
+
+  if(!name || !email || !password || !file){
+    status.textContent = 'Preencha todos os campos.';
+    return;
+  }
+
+  if(password.length < 6){
+    status.textContent = 'A senha deve ter pelo menos 6 caracteres.';
+    return;
+  }
+
+  status.textContent = 'Conta criada! Indo para o mapa...';
+  setTimeout(()=>location.href='map.html',800);
+};
 </script>
 
 </body>
