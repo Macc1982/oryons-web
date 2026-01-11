@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+[23:47, 10/01/2026] .: <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
@@ -17,248 +17,187 @@
     :root{
       --bg:#0b1221; --panel:#0f1830; --stroke:#1e2b55; --brand:#3857ff; --txt:#fff; --muted:#a9b6d9;
     }
+    body{margin:0;background:var(--bg);color:var(--txt);font-fa…
+[23:51, 10/01/2026] .: <!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Oris • Mapa</title>
+
+  <!-- Mapbox + Turf -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+
+  <!-- Supabase -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b1221; --panel:#0f1830; --stroke:#1e2b55;
+      --brand:#3857ff; --txt:#fff; --muted:#a9b6d9;
+    }
     body{margin:0;background:var(--bg);color:var(--txt);font-family:system-ui,Arial}
     #map{position:fixed;inset:0}
     .avatar-pin{
-      width:44px;height:44px;border-radius:50%;overflow:hidden;border:2px solid #fff;box-shadow:0 0 0 2px var(--brand);background:#111
+      width:44px;height:44px;border-radius:50%;overflow:hidden;
+      border:2px solid #fff;box-shadow:0 0 0 2px var(--brand);background:#111
     }
     .avatar-pin img{width:100%;height:100%;object-fit:cover}
-    .mapboxgl-popup-content{background:#0f1830;color:#fff;border:1px solid #1e2b55;border-radius:10px}
-
-    /* Painel de Conexão */
+    .mapboxgl-popup-content{
+      background:#0f1830;color:#fff;border:1px solid #1e2b55;border-radius:10px
+    }
     .panel{
-      position:fixed;right:16px;top:16px;width:320px;background:var(--panel);
-      border:1px solid var(--stroke);border-radius:12px;padding:14px;z-index:10;backdrop-filter: blur(6px);
+      position:fixed;right:16px;top:16px;width:320px;
+      background:var(--panel);border:1px solid var(--stroke);
+      border-radius:12px;padding:14px;z-index:10
     }
     .panel h3{margin:0 0 8px;font-size:18px}
-    .row{display:grid;grid-template-columns:1fr;gap:10px}
-    select,button{width:100%;padding:10px;border-radius:10px;border:1px solid var(--stroke);background:#0b1221;color:#fff}
+    .row{display:grid;gap:10px}
+    select,button{
+      width:100%;padding:10px;border-radius:10px;
+      border:1px solid var(--stroke);background:#0b1221;color:#fff
+    }
     button{cursor:pointer;border-color:var(--brand)}
     .hint{color:var(--muted);font-size:.9rem;margin-top:6px}
-    .pill{display:inline-flex;align-items:center;gap:8px;font-size:.85rem;color:#d6defa}
-    .dot{width:10px;height:10px;border-radius:50%}
   </style>
 </head>
+
 <body>
 <div id="map"></div>
 
-<!-- Painel para criar conexão -->
 <div class="panel">
   <h3>Nova conexão</h3>
   <div class="row">
-    <select id="fromSelect">
-      <option value="">De (perfil A)</option>
-    </select>
-    <select id="toSelect">
-      <option value="">Para (perfil B)</option>
-    </select>
+    <select id="fromSelect"><option value="">De (perfil A)</option></select>
+    <select id="toSelect"><option value="">Para (perfil B)</option></select>
     <select id="relSelect">
       <option value="">Tipo de vínculo</option>
-      <option value="work_meet">Azul • se conheceram no trabalho</option>
-      <option value="school">Amarelo • escola</option>
-      <option value="gym">Verde • academia</option>
-      <option value="relatives">Vermelho • parentes</option>
-      <option value="coworkers">Laranja • colegas de trabalho</option>
-      <option value="schoolmates">Cinza • colegas de escola</option>
+      <option value="work_meet">Trabalho</option>
+      <option value="school">Escola</option>
+      <option value="gym">Academia</option>
+      <option value="relatives">Parentes</option>
+      <option value="coworkers">Colegas</option>
+      <option value="schoolmates">Colegas escola</option>
     </select>
-    <button id="connectBtn">Conectar perfis</button>
-    <div class="hint">
-      <div class="pill"><span class="dot" style="background:#1f6fff"></span>Azul trabalho</div> ·
-      <div class="pill"><span class="dot" style="background:#ffd21f"></span>Amarelo escola</div> ·
-      <div class="pill"><span class="dot" style="background:#29d17d"></span>Verde academia</div>
-      <br>
-      <div class="pill"><span class="dot" style="background:#ff2d55"></span>Vermelho parentes</div> ·
-      <div class="pill"><span class="dot" style="background:#ff8a1f"></span>Laranja colegas trab.</div> ·
-      <div class="pill"><span class="dot" style="background:#9aa0a6"></span>Cinza colegas esc.</div>
-      <div id="status" class="hint" style="margin-top:8px;"></div>
-    </div>
+    <button id="connectBtn">Conectar</button>
+    <div id="status" class="hint"></div>
   </div>
 </div>
 
 <script>
-  // ====== CHAVES ======
-  const MAPBOX_TOKEN   = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
-  const SUPABASE_URL   = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
-  const SUPABASE_ANON  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
+/* ===== CHAVES ===== */
+const MAPBOX_TOKEN = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
+const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
 
-  // ====== MAPA ======
-  mapboxgl.accessToken = MAPBOX_TOKEN;
-  const map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/mapbox/dark-v11',
-    center: [0,10],
-    zoom: 2
-  });
+/* ===== CLIENT SUPABASE (CORRETO) ===== */
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON
+);
 
-  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
-  // Paleta de cores por relação
-  const REL_COLORS = {
-    work_meet:   '#1f6fff', // Azul — se conheceram no trabalho
-    school:      '#ffd21f', // Amarelo — escola
-    gym:         '#29d17d', // Verde — academia
-    relatives:   '#ff2d55', // Vermelho — parentes
-    coworkers:   '#ff8a1f', // Laranja — colegas de trabalho
-    schoolmates: '#9aa0a6'  // Cinza — colegas de escola
-  };
-
-  function relationLabel(key){
-    return {
-      work_meet: 'Se conheceram no trabalho',
-      school: 'Escola',
-      gym: 'Academia',
-      relatives: 'Parentes',
-      coworkers: 'Colegas de trabalho',
-      schoolmates: 'Colegas de escola'
-    }[key] || 'Vínculo';
+/* ===== AUTH GUARD ===== */
+(async () => {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  if (!user) {
+    window.location.href = 'signup.html';
   }
+})();
 
-// ---- Marcadores com avatar
+/* ===== MAPA ===== */
+mapboxgl.accessToken = MAPBOX_TOKEN;
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/dark-v11',
+  center: [0, 10],
+  zoom: 2
+});
+
+/* ===== CORES ===== */
+const REL_COLORS = {
+  work_meet:'#1f6fff', school:'#ffd21f', gym:'#29d17d',
+  relatives:'#ff2d55', coworkers:'#ff8a1f', schoolmates:'#9aa0a6'
+};
+
+/* ===== MARKER ===== */
 function addAvatarMarker(p){
+  if (p.lat == null || p.lng == null) return;
+
   const el = document.createElement('div');
   el.className = 'avatar-pin';
-  el.innerHTML = `<img src="${p.avatar_url}" alt="${p.display_name || 'Usuário'}">`;
+  el.innerHTML = <img src="${p.avatar_url}">;
 
-  const m = new mapboxgl.Marker(el).setLngLat([p.lng, p.lat]).addTo(map);
-
-  const popup = new mapboxgl.Popup({ offset: 24 })
-    .setHTML(`<strong>${p.display_name ?? 'Usuário'}</strong>`);
-
-  m.setPopup(popup);
+  new mapboxgl.Marker(el)
+    .setLngLat([p.lng, p.lat])
+    .setPopup(new mapboxgl.Popup().setHTML(<strong>${p.display_name}</strong>))
+    .addTo(map);
 }
 
-  // ---- Curva entre dois pontos
-  function addCurveLine(a, b, color, featureId, properties={}){
-    // Great circle com suavidade
-    const line = turf.greatCircle([a.lng, a.lat], [b.lng, b.lat], { npoints: 128, properties });
-    const sourceId = `conn-src-${featureId}`;
-    const layerId  = `conn-lyr-${featureId}`;
-
-    if(!map.getSource(sourceId)){
-      map.addSource(sourceId, { type:'geojson', data: line });
-      map.addLayer({
-        id: layerId, type:'line', source: sourceId,
-        layout:{ 'line-join':'round', 'line-cap':'round' },
-        paint:{ 'line-color': color, 'line-width': 2.5, 'line-opacity': 0.9 }
-      });
-
-      map.on('click', layerId, (e)=>{
-        const p = e.features[0].properties;
-        const html = `<strong>${p.from_name}</strong> &nbsp;—&nbsp; <strong>${p.to_name}</strong><br>${p.rel_label}`;
-        new mapboxgl.Popup({closeOnClick:true}).setLngLat(e.lngLat).setHTML(html).addTo(map);
-      });
-      map.on('mouseenter', layerId, ()=> map.getCanvas().style.cursor = 'pointer');
-      map.on('mouseleave', layerId, ()=> map.getCanvas().style.cursor = '');
-    } else {
-      map.getSource(sourceId).setData(line);
-    }
-  }
-
-  // ---- Carregar perfis e conexões
-  let profiles = [];
-  const byId = {};
-
-  async function loadAll(){
-    const { data: profs } = await supabase.from('profiles').select('*').order('created_at');
-    profiles = profs || [];
-    profiles.forEach(p=>{ byId[p.id]=p; addAvatarMarker(p); });
-
-    // popular selects do painel
-    fillSelects();
-
-    const { data: conns } = await supabase.from('connections').select('*').order('created_at');
-    conns?.forEach(c=>{
-      const a = byId[c.from_profile], b = byId[c.to_profile];
-      if(!a || !b) return;
-      addCurveLine(a,b, REL_COLORS[c.relation_type]||'#888', c.id, {
-        from_name: a.display_name || 'Usuário A',
-        to_name:   b.display_name || 'Usuário B',
-        rel_label: relationLabel(c.relation_type)
-      });
-    });
-  }
-
-  function fillSelects(){
-    const fromSel = document.getElementById('fromSelect');
-    const toSel   = document.getElementById('toSelect');
-    [fromSel, toSel].forEach(sel=>{
-      // limpa mantendo o primeiro option
-      sel.querySelectorAll('option:not(:first-child)').forEach(o=>o.remove());
-      profiles.forEach(p=>{
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        opt.textContent = p.display_name || p.id.slice(0,8);
-        sel.appendChild(opt);
-      });
-    });
-  }
-
-  // ---- Criar conexão via painel
-  async function createConnection(){
-    const status = document.getElementById('status');
-    const fromId = document.getElementById('fromSelect').value;
-    const toId   = document.getElementById('toSelect').value;
-    const rel    = document.getElementById('relSelect').value;
-
-    if(!fromId || !toId || !rel){
-      status.textContent = 'Selecione Perfil A, Perfil B e o tipo de vínculo.';
-      return;
-    }
-    if(fromId === toId){
-      status.textContent = 'Escolha perfis diferentes.';
-      return;
-    }
-
-    status.textContent = 'Criando conexão...';
-    try{
-      const { error } = await supabase.from('connections').insert({
-        from_profile: fromId,
-        to_profile: toId,
-        relation_type: rel
-      });
-      if(error) throw error;
-      status.textContent = 'Conexão criada!';
-      // os draws chegam via Realtime; não precisa redesenhar manual aqui
-    }catch(e){
-      console.error(e);
-      status.textContent = 'Erro ao criar conexão.';
-    }
-  }
-
-  document.getElementById('connectBtn').addEventListener('click', createConnection);
-
-  // ---- Inicialização + Realtime
-  map.on('load', async ()=>{
-    await loadAll();
-
-    // Novos perfis em tempo real
-    supabase
-      .channel('rt-profiles')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' },
-        ({ new: p }) => {
-          profiles.push(p);
-          byId[p.id]=p;
-          addAvatarMarker(p);
-          fillSelects();
-        })
-      .subscribe();
-
-    // Novas conexões em tempo real
-    supabase
-      .channel('rt-connections')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'connections' },
-        async ({ new: c })=>{
-          const a = byId[c.from_profile] || (await supabase.from('profiles').select('*').eq('id', c.from_profile).single()).data;
-          const b = byId[c.to_profile]   || (await supabase.from('profiles').select('*').eq('id', c.to_profile).single()).data;
-          if(!a || !b) return;
-          addCurveLine(a,b, REL_COLORS[c.relation_type]||'#888', c.id, {
-            from_name: a.display_name || 'Usuário A',
-            to_name:   b.display_name || 'Usuário B',
-            rel_label: relationLabel(c.relation_type)
-          });
-        })
-      .subscribe();
+/* ===== CURVA ===== */
+function addCurve(a,b,color,id){
+  const line = turf.greatCircle([a.lng,a.lat],[b.lng,b.lat],{npoints:100});
+  const src = src-${id}, lyr = lyr-${id};
+  map.addSource(src,{type:'geojson',data:line});
+  map.addLayer({
+    id:lyr,type:'line',source:src,
+    paint:{'line-color':color,'line-width':2.5}
   });
+}
+
+/* ===== LOAD ===== */
+let profiles=[], byId={};
+
+async function loadAll(){
+  const { data: profs } = await supabaseClient.from('profiles').select('*');
+  profiles = profs || [];
+  profiles.forEach(p=>{
+    byId[p.id]=p;
+    addAvatarMarker(p);
+  });
+
+  fillSelects();
+
+  const { data: conns } = await supabaseClient.from('connections').select('*');
+  conns?.forEach(c=>{
+    const a=byId[c.from_profile], b=byId[c.to_profile];
+    if(a&&b) addCurve(a,b,REL_COLORS[c.relation_type]||'#888',c.id);
+  });
+}
+
+function fillSelects(){
+  ['fromSelect','toSelect'].forEach(id=>{
+    const sel=document.getElementById(id);
+    sel.innerHTML='<option value="">Selecione</option>';
+    profiles.forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p.id; o.textContent=p.display_name;
+      sel.appendChild(o);
+    });
+  });
+}
+
+/* ===== CONEXÃO ===== */
+document.getElementById('connectBtn').onclick = async ()=>{
+  const from=document.getElementById('fromSelect').value;
+  const to=document.getElementById('toSelect').value;
+  const rel=document.getElementById('relSelect').value;
+  const status=document.getElementById('status');
+
+  if(!from||!to||!rel||from===to){
+    status.textContent='Dados inválidos.';
+    return;
+  }
+
+  await supabaseClient.from('connections').insert({
+    from_profile:from,to_profile:to,relation_type:rel
+  });
+
+  status.textContent='Conectado!';
+};
+
+map.on('load', loadAll);
 </script>
 </body>
-</html> 
+</html>
