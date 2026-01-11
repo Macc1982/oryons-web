@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Oryons • Criar conta</title>
 
+<!-- MAPBOX (APENAS VISUAL) -->
 <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
 
 <style>
@@ -16,14 +17,23 @@
   --txt:#ffffff;
   --muted:#8aa0d6;
 }
+
 *{box-sizing:border-box}
+
 body{
   margin:0;
   background:var(--bg);
   color:var(--txt);
   font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial;
 }
-.wrap{max-width:820px;margin:16px auto;padding:16px;}
+
+.wrap{
+  max-width:820px;
+  margin:16px auto;
+  padding:16px;
+}
+
+/* MAPA SOMENTE ESTÉTICO */
 #map{
   height:38vh;
   max-height:360px;
@@ -33,13 +43,21 @@ body{
   pointer-events:none;
   opacity:0.85;
 }
+
 .card{
   background:linear-gradient(180deg,#0f1830,#0b1221);
   border:1px solid var(--stroke);
   border-radius:16px;
   padding:18px;
 }
-label{margin-top:14px;display:block;color:#a9b6d9;font-size:15px;}
+
+label{
+  margin-top:14px;
+  display:block;
+  color:#a9b6d9;
+  font-size:15px;
+}
+
 input{
   width:100%;
   padding:14px;
@@ -49,6 +67,10 @@ input{
   color:#fff;
   font-size:16px;
 }
+
+input::placeholder{color:#7f90c4}
+
+/* BOTÃO DE UPLOAD (CORRETO) */
 #avatarBtn{
   display:block;
   margin-top:8px;
@@ -60,12 +82,21 @@ input{
   text-align:center;
   cursor:pointer;
 }
-#avatarFile{display:none}
-#avatarPreview{
-  width:64px;height:64px;border-radius:50%;
-  margin-top:12px;display:none;
-  border:3px solid var(--brand);object-fit:cover;
+
+#avatarFile{
+  display:none;
 }
+
+#avatarPreview{
+  width:64px;
+  height:64px;
+  border-radius:50%;
+  margin-top:12px;
+  display:none;
+  border:3px solid var(--brand);
+  object-fit:cover;
+}
+
 button{
   width:100%;
   padding:14px;
@@ -73,7 +104,9 @@ button{
   border-radius:12px;
   border:none;
   background:linear-gradient(180deg,#245bff,#1f4fe0);
-  color:#fff;font-size:16px;font-weight:600;
+  color:#fff;
+  font-size:16px;
+  font-weight:600;
 }
 </style>
 </head>
@@ -82,41 +115,49 @@ button{
 
 <div class="wrap">
   <h2>Crie sua conta</h2>
+
+  <!-- MAPA ESTÉTICO -->
   <div id="map"></div>
 
+  <!-- FORMULÁRIO -->
   <div class="card">
+
     <label>Seu nome</label>
-    <input id="displayName">
+    <input id="displayName" placeholder="Ex.: Marcos A. (MACC)">
 
     <label>E-mail</label>
-    <input id="email" type="email">
+    <input id="email" type="email" placeholder="voce@exemplo.com">
 
     <label>Senha</label>
-    <input id="password" type="password" minlength="6">
+    <input
+      id="password"
+      type="password"
+      placeholder="Crie uma senha (mín. 6 caracteres)"
+      minlength="6"
+    >
 
     <label>Foto de perfil</label>
+
     <input id="avatarFile" type="file" accept="image/*">
-    <label for="avatarFile" id="avatarBtn">Escolher foto de perfil</label>
+    <label for="avatarFile" id="avatarBtn">
+      Escolher foto de perfil
+    </label>
 
     <img id="avatarPreview">
+
     <button id="createBtn">Criar conta</button>
-    <p id="status"></p>
+    <p id="status" style="margin-top:10px;color:#8aa0d6"></p>
+
   </div>
 </div>
 
+<!-- MAPBOX JS -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
 <script>
-const supabase = window.supabase.createClient(
-  'https://sdwhuonmixijcnhhtxdj.supabase.co',
-  'SUA_ANON_KEY_AQUI'
-);
-</script>
+/* ===== MAPA SOMENTE VISUAL ===== */
+mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
 
-<script>
-mapboxgl.accessToken = '
-pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
 new mapboxgl.Map({
   container:'map',
   style:'mapbox://styles/mapbox/dark-v11',
@@ -125,82 +166,43 @@ new mapboxgl.Map({
   interactive:false
 });
 
-/* PREVIEW FOTO */
+/* ===== PREVIEW DA FOTO ===== */
 const avatarFile = document.getElementById('avatarFile');
 const avatarPreview = document.getElementById('avatarPreview');
 
-avatarFile.addEventListener('change', () => {
-  if(!avatarFile.files.length) return;
+avatarFile.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+
   const reader = new FileReader();
   reader.onload = () => {
     avatarPreview.src = reader.result;
     avatarPreview.style.display = 'block';
   };
-  reader.readAsDataURL(avatarFile.files[0]);
+  reader.readAsDataURL(file);
 });
 
-/* CRIAR CONTA */
-document.getElementById('createBtn').addEventListener('click', async () => {
-  const name = document.getElementById('displayName').value.trim();
-  const emailValue = document.getElementById('email').value.trim();
+/* ===== CRIAR CONTA (LOCAL / MOCK) ===== */
+document.getElementById('createBtn').onclick = () => {
+  const name = displayName.value.trim();
+  const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const file = avatarFile.files[0];
   const status = document.getElementById('status');
 
-  if(!name || !emailValue || !password || !file){
+  if(!name || !email || !password || !file){
     status.textContent = 'Preencha todos os campos.';
     return;
   }
 
   if(password.length < 6){
-    status.textContent = 'Senha mínima de 6 caracteres.';
-    return;
-  }
-
-  status.textContent = 'Criando conta...';
-
-  const { data, error } = await supabase.auth.signUp({
-    email: emailValue,
-    password
-  });
-
-  if(error){
-    status.textContent = error.message;
-    return;
-  }
-
-  const userId = data.user.id;
-  const ext = file.name.split('.').pop();
-  const path = ${userId}.${ext};
-
-  const upload = await supabase
-    .storage.from('avatars')
-    .upload(path, file, { upsert:true });
-
-  if(upload.error){
-    status.textContent = 'Erro ao enviar avatar.';
-    return;
-  }
-
-  const { data: url } = supabase
-    .storage.from('avatars')
-    .getPublicUrl(path);
-
-  const profile = await supabase.from('profiles').insert({
-    id: userId,
-    display_name: name,
-    email: emailValue,
-    avatar_url: url.publicUrl
-  });
-
-  if(profile.error){
-    status.textContent = 'Erro ao salvar perfil.';
+    status.textContent = 'A senha deve ter pelo menos 6 caracteres.';
     return;
   }
 
   status.textContent = 'Conta criada! Indo para o mapa...';
   setTimeout(()=>location.href='map.html',800);
-});
+};
 </script>
 
 </body>
