@@ -33,7 +33,6 @@ body{
   padding:16px;
 }
 
-/* MAPA SOMENTE ESTÉTICO */
 #map{
   height:38vh;
   max-height:360px;
@@ -70,7 +69,6 @@ input{
 
 input::placeholder{color:#7f90c4}
 
-/* BOTÃO DE UPLOAD (CORRETO) */
 #avatarBtn{
   display:block;
   margin-top:8px;
@@ -83,9 +81,7 @@ input::placeholder{color:#7f90c4}
   cursor:pointer;
 }
 
-#avatarFile{
-  display:none;
-}
+#avatarFile{display:none}
 
 #avatarPreview{
   width:64px;
@@ -116,48 +112,44 @@ button{
 <div class="wrap">
   <h2>Crie sua conta</h2>
 
-  <!-- MAPA ESTÉTICO -->
   <div id="map"></div>
 
-  <!-- FORMULÁRIO -->
   <div class="card">
 
     <label>Seu nome</label>
-    <input id="displayName" placeholder="Ex.: Marcos A. (MACC)">
+    <input id="displayName">
 
     <label>E-mail</label>
-    <input id="email" type="email" placeholder="voce@exemplo.com">
+    <input id="email" type="email">
 
     <label>Senha</label>
-    <input
-      id="password"
-      type="password"
-      placeholder="Crie uma senha (mín. 6 caracteres)"
-      minlength="6"
-    >
+    <input id="password" type="password" minlength="6">
 
     <label>Foto de perfil</label>
-
     <input id="avatarFile" type="file" accept="image/*">
-    <label for="avatarFile" id="avatarBtn">
-      Escolher foto de perfil
-    </label>
+    <label for="avatarFile" id="avatarBtn">Escolher foto de perfil</label>
 
     <img id="avatarPreview">
 
     <button id="createBtn">Criar conta</button>
-    <p id="status" style="margin-top:10px;color:#8aa0d6"></p>
+    <p id="status"></p>
 
   </div>
 </div>
 
-<!-- MAPBOX JS -->
+<!-- MAPBOX -->
 <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 
+<!-- SUPABASE -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script>
-/* ===== MAPA SOMENTE VISUAL ===== */
-mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
+const SUPABASE_URL = 'https://sdwhuonmixijcnhhtxdj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
 
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
 new mapboxgl.Map({
   container:'map',
   style:'mapbox://styles/mapbox/dark-v11',
@@ -166,26 +158,23 @@ new mapboxgl.Map({
   interactive:false
 });
 
-/* ===== PREVIEW DA FOTO ===== */
+/* PREVIEW FOTO */
 const avatarFile = document.getElementById('avatarFile');
 const avatarPreview = document.getElementById('avatarPreview');
 
-avatarFile.addEventListener('change', e => {
-  const file = e.target.files[0];
-  if(!file) return;
-
+avatarFile.onchange = e => {
   const reader = new FileReader();
   reader.onload = () => {
     avatarPreview.src = reader.result;
     avatarPreview.style.display = 'block';
   };
-  reader.readAsDataURL(file);
-});
+  reader.readAsDataURL(e.target.files[0]);
+};
 
-/* ===== CRIAR CONTA (LOCAL / MOCK) ===== */
-document.getElementById('createBtn').onclick = () => {
+/* ===== CRIAR CONTA (SUPABASE REAL) ===== */
+document.getElementById('createBtn').onclick = async () => {
   const name = displayName.value.trim();
-  const email = document.getElementById('email').value.trim();
+  const email = email.value.trim();
   const password = document.getElementById('password').value;
   const file = avatarFile.files[0];
   const status = document.getElementById('status');
@@ -195,10 +184,25 @@ document.getElementById('createBtn').onclick = () => {
     return;
   }
 
-  if(password.length < 6){
-    status.textContent = 'A senha deve ter pelo menos 6 caracteres.';
-    return;
-  }
+  status.textContent = 'Criando conta...';
+
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if(error){ status.textContent = error.message; return; }
+
+  const userId = data.user.id;
+  const ext = file.name.split('.').pop();
+  const path = `${userId}.${ext}`;
+
+  await supabase.storage.from('avatars').upload(path, file, { upsert:true });
+
+  const { data: url } = supabase.storage.from('avatars').getPublicUrl(path);
+
+  await supabase.from('profiles').insert({
+    id:userId,
+    display_name:name,
+    email,
+    avatar_url:url.publicUrl
+  });
 
   status.textContent = 'Conta criada! Indo para o mapa...';
   setTimeout(()=>location.href='map.html',800);
