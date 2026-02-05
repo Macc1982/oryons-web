@@ -50,14 +50,12 @@
       text-align: center;
       z-index: 3;
       box-shadow: 0 30px 60px rgba(0,0,0,0.35);
-      backdrop-filter: blur(6px);
     }
 
     .login-container h1 {
       font-size: 26px;
       font-weight: 700;
       margin-bottom: 6px;
-      color: #111;
     }
 
     .login-container p {
@@ -92,17 +90,6 @@
       font-size: 12px;
       color: #aaa;
     }
-
-    .signup-link {
-      font-size: 14px;
-      color: #555;
-    }
-
-    .signup-link a {
-      color: #1f6fff;
-      font-weight: 600;
-      text-decoration: none;
-    }
   </style>
 </head>
 
@@ -123,16 +110,56 @@
     <div class="divider">ou</div>
 
     <div class="signup-link">
-      Não tem conta? <a href="signup.html">Criar conta agora</a>
+      <a href="signup.html">Criar conta agora</a>
     </div>
   </div>
 
   <!-- Mapbox -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
 
-  <!-- App -->
-  <script type="module" src="js/map.js"></script>
-  <script type="module" src="js/auth.js"></script>
+  <!-- Supabase (UM ÚNICO SCRIPT) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // MAPA
+    mapboxgl.accessToken = 'SUA_MAPBOX_KEY'
+    new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/navigation-night-v1',
+      center: [-47.9, -15.8],
+      zoom: 3,
+      interactive: false
+    })
+
+    // SUPABASE (UMA ÚNICA VEZ)
+    const supabase = supabaseJs.createClient(
+      'https://sdwhuonmixijcnhhtxdj.supabase.co',
+      'SUA_ANON_KEY'
+    )
+
+    // LOGIN
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim()
+      const password = document.getElementById('password').value
+
+      if (!email || !password) {
+        alert('Preencha e-mail e senha')
+        return
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) {
+        alert(error.message)
+        return
+      }
+
+      window.location.href = 'feed.html'
+    })
+  </script>
 
 </body>
 </html>
