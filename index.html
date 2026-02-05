@@ -21,14 +21,12 @@
       overflow: hidden;
     }
 
-    /* MAPA */
     #map {
       position: fixed;
       inset: 0;
       z-index: 1;
     }
 
-    /* OVERLAY ESCURO */
     .overlay {
       position: fixed;
       inset: 0;
@@ -40,7 +38,6 @@
       z-index: 2;
     }
 
-    /* CARD LOGIN */
     .login-container {
       position: fixed;
       top: 50%;
@@ -48,20 +45,17 @@
       transform: translate(-50%, -50%);
       width: 340px;
       padding: 34px 28px;
-      background: rgba(255, 255, 255, 0.97);
+      background: rgba(255,255,255,0.97);
       border-radius: 16px;
       text-align: center;
       z-index: 3;
-      box-shadow:
-        0 30px 60px rgba(0,0,0,0.35),
-        inset 0 1px 0 rgba(255,255,255,0.6);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.35);
       backdrop-filter: blur(6px);
     }
 
     .login-container h1 {
       font-size: 26px;
       font-weight: 700;
-      letter-spacing: 0.6px;
       margin-bottom: 6px;
       color: #111;
     }
@@ -79,19 +73,11 @@
       border-radius: 8px;
       border: 1px solid #dcdcdc;
       font-size: 14px;
-      transition: border 0.2s, box-shadow 0.2s;
-    }
-
-    .login-container input:focus {
-      outline: none;
-      border-color: #1f6fff;
-      box-shadow: 0 0 0 3px rgba(31,111,255,0.15);
     }
 
     .login-container button {
       width: 100%;
       padding: 12px;
-      margin-top: 6px;
       background: linear-gradient(135deg, #1f6fff, #174edb);
       color: #fff;
       border: none;
@@ -99,12 +85,6 @@
       font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-
-    .login-container button:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 10px 20px rgba(31,111,255,0.35);
     }
 
     .divider {
@@ -123,40 +103,14 @@
       font-weight: 600;
       text-decoration: none;
     }
-
-    .signup-link a:hover {
-      text-decoration: underline;
-    }
   </style>
-  @media (max-width: 480px) {
-  .login-container {
-    width: 90%;
-    padding: 28px 22px;
-    border-radius: 14px;
-  }
-
-  .login-container h1 {
-    font-size: 22px;
-  }
-
-  .login-container p {
-    font-size: 12px;
-  }
-
-  .login-container button {
-    font-size: 14px;
-    padding: 12px;
-  }
-}
 </head>
 
 <body>
 
-  <!-- MAPA -->
   <div id="map"></div>
   <div class="overlay"></div>
 
-  <!-- LOGIN -->
   <div class="login-container">
     <h1>Oryons</h1>
     <p>Conectando histórias pelo mundo</p>
@@ -164,7 +118,7 @@
     <input type="email" id="email" placeholder="E-mail">
     <input type="password" id="password" placeholder="Senha">
 
-    <button onclick="login()">Entrar</button>
+    <button id="loginBtn">Entrar</button>
 
     <div class="divider">ou</div>
 
@@ -173,44 +127,12 @@
     </div>
   </div>
 
-  <!-- MAPBOX -->
+  <!-- Mapbox -->
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-  <script>
-    mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA';
 
-    new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/navigation-night-v1',
-      center: [-47.9, -15.8],
-      zoom: 3,
-      interactive: false
-    });
-  </script>
-
-  <!-- SUPABASE -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    const supabase = supabaseJs.createClient(
-      'https://sdwhuonmixijcnhhtxdj.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY'
-    );
-
-    async function login() {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        alert(error.message);
-      } else {
-        window.location.href = 'feed.html';
-      }
-    }
-  </script>
+  <!-- App -->
+  <script type="module" src="js/map.js"></script>
+  <script type="module" src="js/auth.js"></script>
 
 </body>
 </html>
