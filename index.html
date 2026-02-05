@@ -122,7 +122,499 @@
 
   <script>
     // MAPA
-    mapboxgl.accessToken = 'SUA_MAPBOX_KEY'
+    mapboxgl.accessToken = '<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Oryons — Login</title>
+
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #map {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(
+        circle at center,
+        rgba(0,0,0,0.15),
+        rgba(0,0,0,0.65)
+      );
+      z-index: 2;
+    }
+
+    .login-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 340px;
+      padding: 34px 28px;
+      background: rgba(255,255,255,0.97);
+      border-radius: 16px;
+      text-align: center;
+      z-index: 3;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.35);
+    }
+
+    .login-container h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .login-container p {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 26px;
+    }
+
+    .login-container input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid #dcdcdc;
+      font-size: 14px;
+    }
+
+    .login-container button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #1f6fff, #174edb);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .divider {
+      margin: 22px 0 14px;
+      font-size: 12px;
+      color: #aaa;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="map"></div>
+  <div class="overlay"></div>
+
+  <div class="login-container">
+    <h1>Oryons</h1>
+    <p>Conectando histórias pelo mundo</p>
+
+    <input type="email" id="email" placeholder="E-mail">
+    <input type="password" id="password" placeholder="Senha">
+
+    <button id="loginBtn">Entrar</button>
+
+    <div class="divider">ou</div>
+
+    <div class="signup-link">
+      <a href="signup.html">Criar conta agora</a>
+    </div>
+  </div>
+
+  <!-- Mapbox -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+
+  <!-- Supabase (UM ÚNICO SCRIPT) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // MAPA
+    mapboxgl.accessToken = '<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Oryons — Login</title>
+
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #map {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(
+        circle at center,
+        rgba(0,0,0,0.15),
+        rgba(0,0,0,0.65)
+      );
+      z-index: 2;
+    }
+
+    .login-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 340px;
+      padding: 34px 28px;
+      background: rgba(255,255,255,0.97);
+      border-radius: 16px;
+      text-align: center;
+      z-index: 3;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.35);
+    }
+
+    .login-container h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .login-container p {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 26px;
+    }
+
+    .login-container input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid #dcdcdc;
+      font-size: 14px;
+    }
+
+    .login-container button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #1f6fff, #174edb);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .divider {
+      margin: 22px 0 14px;
+      font-size: 12px;
+      color: #aaa;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="map"></div>
+  <div class="overlay"></div>
+
+  <div class="login-container">
+    <h1>Oryons</h1>
+    <p>Conectando histórias pelo mundo</p>
+
+    <input type="email" id="email" placeholder="E-mail">
+    <input type="password" id="password" placeholder="Senha">
+
+    <button id="loginBtn">Entrar</button>
+
+    <div class="divider">ou</div>
+
+    <div class="signup-link">
+      <a href="signup.html">Criar conta agora</a>
+    </div>
+  </div>
+
+  <!-- Mapbox -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+
+  <!-- Supabase (UM ÚNICO SCRIPT) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // MAPA
+    mapboxgl.accessToken = '<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Oryons — Login</title>
+
+  <!-- Mapbox CSS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #map {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(
+        circle at center,
+        rgba(0,0,0,0.15),
+        rgba(0,0,0,0.65)
+      );
+      z-index: 2;
+    }
+
+    .login-container {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 340px;
+      padding: 34px 28px;
+      background: rgba(255,255,255,0.97);
+      border-radius: 16px;
+      text-align: center;
+      z-index: 3;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.35);
+    }
+
+    .login-container h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .login-container p {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 26px;
+    }
+
+    .login-container input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid #dcdcdc;
+      font-size: 14px;
+    }
+
+    .login-container button {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #1f6fff, #174edb);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .divider {
+      margin: 22px 0 14px;
+      font-size: 12px;
+      color: #aaa;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="map"></div>
+  <div class="overlay"></div>
+
+  <div class="login-container">
+    <h1>Oryons</h1>
+    <p>Conectando histórias pelo mundo</p>
+
+    <input type="email" id="email" placeholder="E-mail">
+    <input type="password" id="password" placeholder="Senha">
+
+    <button id="loginBtn">Entrar</button>
+
+    <div class="divider">ou</div>
+
+    <div class="signup-link">
+      <a href="signup.html">Criar conta agora</a>
+    </div>
+  </div>
+
+  <!-- Mapbox -->
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+
+  <!-- Supabase (UM ÚNICO SCRIPT) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // MAPA
+    mapboxgl.accessToken = 'pk.eyJ1IjoibWFjYzE5ODIiLCJhIjoiY21rOGhzMzM5MTd3bzNrb3BnNXNncGZpMCJ9.YGmfVhj1c4kTiQ2P7LJkvA'
+    new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/navigation-night-v1',
+      center: [-47.9, -15.8],
+      zoom: 3,
+      interactive: false
+    })
+
+    // SUPABASE (UMA ÚNICA VEZ)
+    const supabase = supabaseJs.createClient(
+      'https://sdwhuonmixijcnhhtxdj.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkd2h1b25taXhpamNuaGh0eGRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5OTg0NzUsImV4cCI6MjA3MTU3NDQ3NX0.5rGWZnSP6V2H4RmB1u4O60tocnzLN2Sg63aC2a_9LcY'
+    )
+
+    // LOGIN
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim()
+      const password = document.getElementById('password').value
+
+      if (!email || !password) {
+        alert('Preencha e-mail e senha')
+        return
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) {
+        alert(error.message)
+        return
+      }
+
+      window.location.href = 'feed.html'
+    })
+  </script>
+
+</body>
+</html>'
+    new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/navigation-night-v1',
+      center: [-47.9, -15.8],
+      zoom: 3,
+      interactive: false
+    })
+
+    // SUPABASE (UMA ÚNICA VEZ)
+    const supabase = supabaseJs.createClient(
+      'https://sdwhuonmixijcnhhtxdj.supabase.co',
+      'SUA_ANON_KEY'
+    )
+
+    // LOGIN
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim()
+      const password = document.getElementById('password').value
+
+      if (!email || !password) {
+        alert('Preencha e-mail e senha')
+        return
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) {
+        alert(error.message)
+        return
+      }
+
+      window.location.href = 'feed.html'
+    })
+  </script>
+
+</body>
+</html>'
+    new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/navigation-night-v1',
+      center: [-47.9, -15.8],
+      zoom: 3,
+      interactive: false
+    })
+
+    // SUPABASE (UMA ÚNICA VEZ)
+    const supabase = supabaseJs.createClient(
+      'https://sdwhuonmixijcnhhtxdj.supabase.co',
+      'SUA_ANON_KEY'
+    )
+
+    // LOGIN
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim()
+      const password = document.getElementById('password').value
+
+      if (!email || !password) {
+        alert('Preencha e-mail e senha')
+        return
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+
+      if (error) {
+        alert(error.message)
+        return
+      }
+
+      window.location.href = 'feed.html'
+    })
+  </script>
+
+</body>
+</html>'
     new mapboxgl.Map({
       container: 'map',
       style: 'mapbox://styles/mapbox/navigation-night-v1',
